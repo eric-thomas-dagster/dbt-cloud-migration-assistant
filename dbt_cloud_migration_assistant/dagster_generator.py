@@ -53,7 +53,8 @@ class DagsterProjectGenerator:
 
             project_name = self._sanitize_name(project.get("name", f"project_{project_id}"))
             project_display_name = project.get("name", f"project_{project_id}")
-            dbt_project_path = f"./dbt_projects/{project_display_name}"
+            # Use relative path without ./ prefix for cleaner path resolution
+            dbt_project_path = f"dbt_projects/{project_display_name}"
 
             # Scaffold dbt component using CLI
             self._scaffold_dbt_component(project_name, dbt_project_path)
@@ -310,6 +311,8 @@ root_module = "{project_package}"
         defs_config = {
             "type": "dagster_dbt.DbtProjectComponent",
             "attributes": {
+                # Path should be relative to project_root or absolute
+                # Using relative path from project root
                 "project": f"${{{{ project_root }}}}/{dbt_project_path}",
             },
         }
