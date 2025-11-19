@@ -783,7 +783,9 @@ root_module = "{project_package}"
             content += "\n"
             
             for key, value in sorted(env_vars.items()):
-                content += f"{key}={value}\n"
+                # Skip DBT_PROFILES_DIR - Dagster handles this automatically
+                if key != "DBT_PROFILES_DIR":
+                    content += f"{key}={value}\n"
             
             content += "\n# Dagster Cloud Deployment Variables\n"
             content += "# These are automatically available in Dagster Cloud deployments:\n"
