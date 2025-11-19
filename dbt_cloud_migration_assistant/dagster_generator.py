@@ -333,20 +333,17 @@ root_module = "{project_package}"
                 f.write('"""Dagster project migrated from dbt Cloud."""\n')
         
         # Create definitions.py - Dagster expects this module
-        # With component-based YAML, this can be minimal as definitions are loaded from YAML
+        # In Dagster 1.12+, definitions are loaded from YAML via the component system
         definitions_file = package_dir / "definitions.py"
         if not definitions_file.exists():
             with open(definitions_file, "w") as f:
-                f.write('"""Dagster definitions loaded from YAML components."""\n')
-                f.write('\n')
-                f.write('import dagster as dg\n')
-                f.write('\n')
-                f.write('# Definitions are loaded from YAML files in defs/ directory\n')
-                f.write('# This file exists for compatibility with Dagster\'s module structure\n')
-                f.write('# All definitions are component-based and defined in YAML\n')
-                f.write('\n')
-                f.write('# Empty Definitions - components are loaded from YAML\n')
-                f.write('defs = dg.Definitions()\n')
+                f.write('"""Dagster definitions loaded from YAML components."""\n\n')
+                f.write('from pathlib import Path\n')
+                f.write('from dagster_dg_core.definitions.yaml_definitions import load_definitions_from_yaml\n\n')
+                f.write('# Load all definitions from YAML files in the defs/ directory\n')
+                f.write('# This includes dbt components, jobs, and schedules\n')
+                f.write('defs_dir = Path(__file__).parent / "defs"\n')
+                f.write('defs = load_definitions_from_yaml(defs_dir)\n')
 
     def _register_custom_components(self):
         """Register custom components using Dagster CLI and copy component files"""
