@@ -248,6 +248,9 @@ dependencies = [
     "dagster-dbt>=0.22.0",
     "dbt-core>=1.5.0",
 ]
+
+[tool.dg]
+directory_type = "project"
 """
         with open(self.output_dir / "pyproject.toml", "w") as f:
             f.write(pyproject_content)
@@ -543,6 +546,9 @@ dependencies = [
             for dep in dependencies:
                 content += f'    "{dep}",\n'
             content += """]
+
+[tool.dg]
+directory_type = "project"
 """
             with open(pyproject_path, "w") as f:
                 f.write(content)
@@ -558,10 +564,20 @@ dependencies = [
         new_lines = []
         in_dependencies = False
         existing_deps = set()
+        has_tool_dg = False
         
         for line in lines:
+            # Check if tool.dg section exists
+            if '[tool.dg]' in line:
+                has_tool_dg = True
+                new_lines.append(line)
+                continue
+            elif 'tool.dg' in line and 'directory_type' in line:
+                # Update directory_type if it exists
+                new_lines.append('directory_type = "project"')
+                continue
             # Update requires-python to >=3.10 for Dagster 1.12+ compatibility
-            if 'requires-python' in line and '<3.10' in line:
+            elif 'requires-python' in line and '<3.10' in line:
                 new_lines.append('requires-python = ">=3.10"')
                 continue
             elif 'requires-python' in line:
@@ -589,6 +605,12 @@ dependencies = [
                     new_lines.append(line)
             else:
                 new_lines.append(line)
+        
+        # Add tool.dg section if it doesn't exist
+        if not has_tool_dg:
+            new_lines.append("")
+            new_lines.append("[tool.dg]")
+            new_lines.append('directory_type = "project"')
 
         with open(pyproject_path, "w") as f:
             f.write("\n".join(new_lines))
