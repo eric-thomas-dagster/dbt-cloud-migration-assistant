@@ -25,9 +25,10 @@ git clone https://github.com/eric-thomas-dagster/dbt-cloud-migration-assistant.g
 ## Getting Your dbt Cloud Credentials
 
 1. Go to https://cloud.getdbt.com
-2. Account Settings → API Tokens
-3. Create a new token
-4. Copy your Account ID from the URL or settings
+2. Account Settings → **Service Tokens** (recommended) or API Tokens
+3. Create a new **Service Token** (recommended) or Personal Access Token
+4. Ensure the token has permissions to read projects, jobs, and environments
+5. Copy your Account ID from the URL or settings (usually 6-8 digits)
 
 ## What Happens Next
 

@@ -1,7 +1,7 @@
 """CLI interface for dbt Cloud migration assistant"""
 
 import click
-from typing import Dict
+from typing import Dict, Optional
 from .dbt_cloud_client import DbtCloudClient
 from .git_discovery import discover_git_repo, prompt_for_git_repo, validate_git_url
 from .dagster_generator import DagsterProjectGenerator
@@ -28,11 +28,16 @@ from .adapter_detector import detect_adapters, extract_environment_variables
     help="Output directory for generated Dagster project",
 )
 @click.option(
+    "--api-base-url",
+    default=None,
+    help="Custom API base URL for multi-tenant accounts (e.g., https://lm759.us1.dbt.com/api/v2)",
+)
+@click.option(
     "--skip-confirm",
     is_flag=True,
     help="Skip confirmation prompts",
 )
-def main(api_key: str, account_id: int, output_dir: str, skip_confirm: bool):
+def main(api_key: str, account_id: int, output_dir: str, api_base_url: Optional[str], skip_confirm: bool):
     """
     Migrate dbt Cloud projects, jobs, and schedules to Dagster.
 
@@ -44,8 +49,20 @@ def main(api_key: str, account_id: int, output_dir: str, skip_confirm: bool):
 
     # Initialize client
     try:
-        client = DbtCloudClient(api_key, account_id)
-        click.echo("✓ Connected to dbt Cloud API")
+        if api_base_url:
+            click.echo(f"Using custom API base URL: {api_base_url}")
+        client = DbtCloudClient(api_key, account_id, base_url=api_base_url)
+        click.echo("✓ Initialized dbt Cloud API client")
+        
+        # Test connection
+        click.echo("🔐 Testing authentication...")
+        if not client.test_connection():
+            click.echo("✗ Authentication failed. Please check:", err=True)
+            click.echo("  - API token is correct and active", err=True)
+            click.echo("  - Account ID is correct (check URL: cloud.getdbt.com/settings/accounts/{ID}/)", err=True)
+            click.echo("  - Service token has proper permissions", err=True)
+            raise click.Abort()
+        click.echo("✓ Authentication successful")
     except Exception as e:
         click.echo(f"✗ Failed to connect to dbt Cloud: {e}", err=True)
         raise click.Abort()

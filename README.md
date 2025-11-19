@@ -30,9 +30,23 @@ git clone https://github.com/eric-thomas-dagster/dbt-cloud-migration-assistant.g
 
 ## Getting Your dbt Cloud Credentials
 
-1. Go to [dbt Cloud](https://cloud.getdbt.com) → Account Settings → API Tokens
-2. Create a new API token
-3. Copy your Account ID from the URL or account settings
+1. Go to [dbt Cloud](https://cloud.getdbt.com) → Account Settings → **Service Tokens** (recommended) or API Tokens
+2. Create a new **Service Token** (recommended for system-level operations) or Personal Access Token
+3. Ensure the token has permissions to read projects, jobs, and environments
+4. Copy your Account ID from the URL or account settings (usually 6-8 digits)
+
+### Multi-Tenant Accounts
+
+If you have a multi-tenant account (with a custom access URL like `https://lm759.us1.dbt.com/`), you'll need to specify the API base URL:
+
+```bash
+dbt-cloud-migrate \
+  --api-key YOUR_API_KEY \
+  --account-id YOUR_ACCOUNT_ID \
+  --api-base-url https://YOUR_PREFIX.us1.dbt.com/api/v2
+```
+
+Replace `YOUR_PREFIX` with your account prefix (found in Account Settings).
 
 ## What You Get
 
