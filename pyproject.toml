@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dbt-cloud-migration-assistant"
+version = "0.1.0"
+description = "Migrate dbt Cloud projects to dbt Core + Dagster"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "Eric Thomas", email = "eric@dagster.io"},
+]
+dependencies = [
+    "click>=8.0.0",
+    "requests>=2.28.0",
+    "pyyaml>=6.0",
+    "dagster[cli]>=1.12.0",
+    "dagster-dbt>=0.22.0",
+    "dbt-core>=1.5.0",
+]
+
+[project.scripts]
+dbt-cloud-migrate = "dbt_cloud_migration_assistant.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/eric-thomas-dagster/dbt-cloud-migration-assistant"
+Documentation = "https://github.com/eric-thomas-dagster/dbt-cloud-migration-assistant#readme"
+Repository = "https://github.com/eric-thomas-dagster/dbt-cloud-migration-assistant"
+
+[tool.setuptools.packages.find]
+where = ["."]
+
