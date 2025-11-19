@@ -304,23 +304,20 @@ root_module = "{project_package}"
         defs_dir = self.output_dir / project_package / "defs" / component_name
         defs_dir.mkdir(parents=True, exist_ok=True)
 
-        # Dagster 1.12 defs.yaml format - list of definitions
-        # Following the pattern from hooli-data-eng-pipelines:
-        # https://github.com/dagster-io/hooli-data-eng-pipelines/blob/master/hooli-data-eng/src/hooli_data_eng/defs/dbt/resources.py
-        defs_config = [
-            {
-                "type": "dagster_dbt.DbtProjectComponent",
-                "attributes": {
-                    "project": f"${{{{ project_root }}}}/{dbt_project_path}",
-                    # Deployment-aware target selection:
-                    # The target is automatically selected based on DAGSTER_CLOUD_DEPLOYMENT_NAME
-                    # - 'local' for local development (DuckDB)
-                    # - Environment name (e.g., 'prod', 'staging') for deployments
-                    # Defaults to 'local' if DAGSTER_CLOUD_DEPLOYMENT_NAME is not set
-                    "target": "{{ env_var('DAGSTER_CLOUD_DEPLOYMENT_NAME', 'local') }}",
-                },
-            }
-        ]
+        # Dagster 1.12 defs.yaml format - single object (not a list)
+        # The defs.yaml should contain a single component definition
+        defs_config = {
+            "type": "dagster_dbt.DbtProjectComponent",
+            "attributes": {
+                "project": f"${{{{ project_root }}}}/{dbt_project_path}",
+                # Deployment-aware target selection:
+                # The target is automatically selected based on DAGSTER_CLOUD_DEPLOYMENT_NAME
+                # - 'local' for local development (DuckDB)
+                # - Environment name (e.g., 'prod', 'staging') for deployments
+                # Defaults to 'local' if DAGSTER_CLOUD_DEPLOYMENT_NAME is not set
+                "target": "{{ env_var('DAGSTER_CLOUD_DEPLOYMENT_NAME', 'local') }}",
+            },
+        }
 
         with open(defs_dir / "defs.yaml", "w") as f:
             yaml.dump(defs_config, f, default_flow_style=False, sort_keys=False)
