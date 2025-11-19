@@ -774,7 +774,9 @@ dependencies = [
             content += "### Missing Git Repositories\n"
             content += "**Warning:** The following projects were skipped because no git repository was found:\n\n"
             for project in missing_repos:
-                content += f"- {project.get('name', f'project_{project.get(\"id\")}')} (ID: {project.get('id')})\n"
+                project_id = project.get("id")
+                project_name = project.get("name", f"project_{project_id}")
+                content += f"- {project_name} (ID: {project_id})\n"
             content += "\n"
         
         # Deployment awareness
