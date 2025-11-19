@@ -327,8 +327,9 @@ root_module = "{project_package}"
                     # This works across machines and cloud deployments
                     "project_dir": relative_path,
                     # Use env.DBT_PROFILES_DIR if set, otherwise use env.HOME + '/.dbt' for portability
-                    # env.HOME is available in YAML template scope and works across platforms
-                    "profiles_dir": "${{ env.DBT_PROFILES_DIR if env.DBT_PROFILES_DIR else env.HOME + '/.dbt' }}",
+                    # Using a simpler expression that should work in Dagster's YAML template system
+                    # If DBT_PROFILES_DIR is not set, it will default to env.HOME + '/.dbt'
+                    "profiles_dir": "${{ env.DBT_PROFILES_DIR or env.HOME + '/.dbt' }}",
                 },
             },
         }
