@@ -332,10 +332,15 @@ root_module = "{project_package}"
                     # Use relative path from defs.yaml location for portability
                     # This works across machines and cloud deployments
                     "project_dir": relative_path,
-                    # Use env.DBT_PROFILES_DIR if set (from .env file), otherwise fallback to env.HOME + '/.dbt'
-                    # For portability: DBT_PROFILES_DIR should be set in .env file (generated automatically)
-                    # If not set, users can manually set it or it will default to ~/.dbt via env.HOME
-                    "profiles_dir": "${{ env.DBT_PROFILES_DIR or (env.HOME + '/.dbt') }}",
+                    # Use DBT_PROFILES_DIR from .env file (expanded to absolute path during generation)
+                    # For portability: The .env file contains DBT_PROFILES_DIR with expanded absolute path
+                    # We use the expanded path directly since template variables don't work reliably in nested dicts
+                    import os
+                    profiles_dir = os.path.expanduser("~/.dbt")
+                    # Try to get from environment if available, otherwise use default
+                    if "DBT_PROFILES_DIR" in os.environ:
+                        profiles_dir = os.path.expanduser(os.environ["DBT_PROFILES_DIR"])
+                    "profiles_dir": profiles_dir,
                 },
             },
         }
