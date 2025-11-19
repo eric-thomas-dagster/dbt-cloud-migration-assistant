@@ -317,8 +317,8 @@ root_module = "{project_package}"
         # Use relative path from defs.yaml location since project_root template doesn't resolve in nested dicts
         # defs.yaml is at: <package>/defs/<component_name>/defs.yaml
         # dbt project is at: dbt_projects/<project_name>
-        # Relative path: ../../../../dbt_projects/<project_name>
-        relative_path = f"../../../../{dbt_project_path}"
+        # From defs.yaml: up 3 levels (../../../) to project root, then into dbt_projects/<project_name>
+        relative_path = f"../../../{dbt_project_path}"
         defs_config = {
             "type": "dagster_dbt.DbtProjectComponent",
             "attributes": {
