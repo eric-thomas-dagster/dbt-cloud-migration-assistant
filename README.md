@@ -10,17 +10,31 @@ git clone https://github.com/eric-thomas-dagster/dbt-cloud-migration-assistant.g
 cd dbt-cloud-migration-assistant
 pip install -e .
 
-# 2. Run migration
-dbt-cloud-migrate --api-key YOUR_API_KEY --account-id YOUR_ACCOUNT_ID
+# 2. Run migration (with automatic setup)
+dbt-cloud-migrate --api-key YOUR_API_KEY --account-id YOUR_ACCOUNT_ID --auto-setup
 ```
 
-That's it! You'll get a complete Dagster project in the `dagster_project/` directory.
+That's it! The `--auto-setup` flag will automatically:
+- Clone all dbt project repositories
+- Copy `profiles.yml` to `~/.dbt/profiles.yml`
+- Install all dependencies
 
-## One-Liner
+You'll get a complete Dagster project ready to run!
+
+## One-Liner (with auto-setup)
 
 ```bash
-git clone https://github.com/eric-thomas-dagster/dbt-cloud-migration-assistant.git && cd dbt-cloud-migration-assistant && pip install -e . && dbt-cloud-migrate --api-key YOUR_API_KEY --account-id YOUR_ACCOUNT_ID
+git clone https://github.com/eric-thomas-dagster/dbt-cloud-migration-assistant.git && cd dbt-cloud-migration-assistant && pip install -e . && dbt-cloud-migrate --api-key YOUR_API_KEY --account-id YOUR_ACCOUNT_ID --auto-setup
 ```
+
+## Options
+
+- `--auto-setup` - Automatically clone repos, copy profiles.yml, and install dependencies (recommended)
+- `--clone-repos` - Only clone dbt project repositories
+- `--copy-profiles` - Only copy profiles.yml to ~/.dbt/profiles.yml
+- `--install-deps` - Only install dependencies
+- `--api-base-url` - Custom API base URL for multi-tenant accounts
+- `--skip-confirm` - Skip confirmation prompts
 
 ## What You Need
 
@@ -61,11 +75,17 @@ After running the migration:
 
 ## Next Steps
 
+If you used `--auto-setup`, you're almost done:
+
 1. Review `dagster_project/MIGRATION_SUMMARY.md`
-2. Update `.env` file with your credentials
-3. Copy `profiles.yml.template` to `~/.dbt/profiles.yml`
-4. Run `./clone_dbt_projects.sh` to clone repositories
-5. Start Dagster: `cd dagster_project && dg dev`
+2. Update `.env` file with your database credentials
+3. Update `~/.dbt/profiles.yml` with your database credentials
+4. Start Dagster: `cd dagster_project && dg dev`
+
+If you didn't use `--auto-setup`, you'll need to:
+1. Run `./clone_dbt_projects.sh` to clone repositories
+2. Copy `profiles.yml.template` to `~/.dbt/profiles.yml`
+3. Install dependencies: `cd dagster_project && pip install -e .`
 
 ## Features
 
