@@ -159,8 +159,8 @@ def extract_environment_variables(
                     env_vars[key] = value
 
     # Add common dbt variables
-    if "DBT_PROFILES_DIR" not in env_vars:
-        env_vars["DBT_PROFILES_DIR"] = "~/.dbt"
+    # Note: DBT_PROFILES_DIR is not added - Dagster dbt component
+    # automatically finds profiles.yml in ~/.dbt (default location)
 
     return env_vars
 
