@@ -306,16 +306,11 @@ root_module = "{project_package}"
 
         # Dagster 1.12 defs.yaml format - single object (not a list)
         # The defs.yaml should contain a single component definition
+        # Note: Target selection is handled via dbt profiles.yml, not as a component attribute
         defs_config = {
             "type": "dagster_dbt.DbtProjectComponent",
             "attributes": {
                 "project": f"${{{{ project_root }}}}/{dbt_project_path}",
-                # Deployment-aware target selection:
-                # The target is automatically selected based on DAGSTER_CLOUD_DEPLOYMENT_NAME
-                # - 'local' for local development (DuckDB)
-                # - Environment name (e.g., 'prod', 'staging') for deployments
-                # Defaults to 'local' if DAGSTER_CLOUD_DEPLOYMENT_NAME is not set
-                "target": "{{ env_var('DAGSTER_CLOUD_DEPLOYMENT_NAME', 'local') }}",
             },
         }
 
