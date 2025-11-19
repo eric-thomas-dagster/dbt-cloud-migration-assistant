@@ -40,24 +40,15 @@ from .adapter_detector import detect_adapters, extract_environment_variables
 @click.option(
     "--auto-setup",
     is_flag=True,
-    help="Automatically clone repositories, copy profiles.yml, and install dependencies",
+    default=True,
+    help="Automatically clone repositories, copy profiles.yml, and install dependencies (default: enabled)",
 )
 @click.option(
-    "--clone-repos",
+    "--no-auto-setup",
     is_flag=True,
-    help="Automatically clone dbt project repositories",
+    help="Skip automatic setup (don't clone repos, copy profiles, or install deps)",
 )
-@click.option(
-    "--copy-profiles",
-    is_flag=True,
-    help="Automatically copy profiles.yml.template to ~/.dbt/profiles.yml",
-)
-@click.option(
-    "--install-deps",
-    is_flag=True,
-    help="Automatically install dependencies in the generated Dagster project",
-)
-def main(api_key: str, account_id: int, output_dir: str, api_base_url: Optional[str], skip_confirm: bool, auto_setup: bool, clone_repos: bool, copy_profiles: bool, install_deps: bool):
+def main(api_key: str, account_id: int, output_dir: str, api_base_url: Optional[str], skip_confirm: bool, auto_setup: bool, no_auto_setup: bool):
     """
     Migrate dbt Cloud projects, jobs, and schedules to Dagster.
 

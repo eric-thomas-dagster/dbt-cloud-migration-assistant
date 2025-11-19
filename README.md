@@ -10,35 +10,33 @@ git clone https://github.com/eric-thomas-dagster/dbt-cloud-migration-assistant.g
 cd dbt-cloud-migration-assistant
 pip install -e .
 
-# 2. Run migration (with automatic setup)
-dbt-cloud-migrate --api-key YOUR_API_KEY --account-id YOUR_ACCOUNT_ID --auto-setup
+# 2. Run migration
+dbt-cloud-migrate --api-key YOUR_API_KEY --account-id YOUR_ACCOUNT_ID
 ```
 
-That's it! The `--auto-setup` flag will automatically:
+That's it! The tool will automatically:
 - Clone all dbt project repositories
 - Copy `profiles.yml` to `~/.dbt/profiles.yml`
 - Install all dependencies
 
 You'll get a complete Dagster project ready to run!
 
-## One-Liner (with auto-setup)
+## One-Liner
 
 ```bash
-git clone https://github.com/eric-thomas-dagster/dbt-cloud-migration-assistant.git && cd dbt-cloud-migration-assistant && pip install -e . && dbt-cloud-migrate --api-key YOUR_API_KEY --account-id YOUR_ACCOUNT_ID --auto-setup
+git clone https://github.com/eric-thomas-dagster/dbt-cloud-migration-assistant.git && cd dbt-cloud-migration-assistant && pip install -e . && dbt-cloud-migrate --api-key YOUR_API_KEY --account-id YOUR_ACCOUNT_ID
 ```
 
 ## Options
 
-- `--auto-setup` - Automatically clone repos, copy profiles.yml, and install dependencies (recommended)
-- `--clone-repos` - Only clone dbt project repositories
-- `--copy-profiles` - Only copy profiles.yml to ~/.dbt/profiles.yml
-- `--install-deps` - Only install dependencies
+- `--no-auto-setup` - Skip automatic setup (don't clone repos, copy profiles, or install deps)
 - `--api-base-url` - Custom API base URL for multi-tenant accounts
 - `--skip-confirm` - Skip confirmation prompts
+- `--output-dir` - Output directory for generated Dagster project (default: `dagster_project`)
 
 ## What You Need
 
-- Python 3.8+
+- Python 3.10+
 - dbt Cloud API key and account ID
 - Access to your dbt project git repositories
 
@@ -75,17 +73,12 @@ After running the migration:
 
 ## Next Steps
 
-If you used `--auto-setup`, you're almost done:
+After migration completes:
 
 1. Review `dagster_project/MIGRATION_SUMMARY.md`
-2. Update `.env` file with your database credentials
+2. Update `.env` file with your database credentials (if needed)
 3. Update `~/.dbt/profiles.yml` with your database credentials
 4. Start Dagster: `cd dagster_project && dg dev`
-
-If you didn't use `--auto-setup`, you'll need to:
-1. Run `./clone_dbt_projects.sh` to clone repositories
-2. Copy `profiles.yml.template` to `~/.dbt/profiles.yml`
-3. Install dependencies: `cd dagster_project && pip install -e .`
 
 ## Features
 
@@ -109,15 +102,29 @@ All using Dagster's official CLI - no custom code generation!
 
 ## Requirements
 
-- Python 3.8+
+- Python 3.10+
 - Dagster 1.12+ (automatically installed)
 - dagster-dbt 0.22.0+ (automatically installed)
 
-## Documentation
+## Troubleshooting
 
-- [INSTALL.md](INSTALL.md) - Detailed installation guide
-- [DELIVERY.md](DELIVERY.md) - Information for distributing this tool
-- [QUICKSTART.md](QUICKSTART.md) - 3-step quick start
+### "Command not found: dbt-cloud-migrate"
+
+Make sure you installed the package:
+```bash
+pip install -e .
+```
+
+### "Dagster CLI not found"
+
+The tool will automatically install Dagster, but if you see this error:
+```bash
+pip install 'dagster[cli]>=1.12.0'
+```
+
+### Multi-Tenant Account Issues
+
+If you have a multi-tenant account and get authentication errors, make sure to use the `--api-base-url` flag with your account's custom API endpoint.
 
 ## Support
 
