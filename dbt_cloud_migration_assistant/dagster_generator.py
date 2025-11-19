@@ -326,22 +326,11 @@ root_module = "{project_package}"
         project_name_only = dbt_project_path.replace("../dbt_projects/", "")
         relative_path = f"../../../../dbt_projects/{project_name_only}"
         
-        # For profiles_dir: Template variables don't work reliably in nested dicts
-        # Read from .env file if it exists, otherwise use default ~/.dbt
+        # For profiles_dir: Use default dbt location (~/.dbt)
+        # Dagster's dbt component will automatically find profiles.yml in the default location
+        # No need to set DBT_PROFILES_DIR env var - the component handles this
         import os
         profiles_dir = os.path.expanduser("~/.dbt")
-        env_file = self.output_dir / ".env"
-        if env_file.exists():
-            with open(env_file, "r") as f:
-                for line in f:
-                    line = line.strip()
-                    if line.startswith("DBT_PROFILES_DIR="):
-                        profiles_dir = line.split("=", 1)[1].strip()
-                        # Remove quotes if present
-                        profiles_dir = profiles_dir.strip('"\'')
-                        # Expand ~ if present
-                        profiles_dir = os.path.expanduser(profiles_dir)
-                        break
         
         defs_config = {
             "type": "dagster_dbt.DbtProjectComponent",
@@ -350,9 +339,8 @@ root_module = "{project_package}"
                     # Use relative path from defs.yaml location for portability
                     # This works across machines and cloud deployments
                     "project_dir": relative_path,
-                    # Read profiles_dir from .env file at generation time
-                    # This ensures the path is correct and works immediately
-                    # The .env file contains DBT_PROFILES_DIR with expanded absolute path
+                    # Use default dbt profiles location
+                    # Dagster will automatically find profiles.yml in ~/.dbt
                     "profiles_dir": profiles_dir,
                 },
             },
