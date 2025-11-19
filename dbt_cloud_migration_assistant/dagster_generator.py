@@ -53,8 +53,9 @@ class DagsterProjectGenerator:
 
             project_name = self._sanitize_name(project.get("name", f"project_{project_id}"))
             project_display_name = project.get("name", f"project_{project_id}")
-            # Use relative path without ./ prefix for cleaner path resolution
-            dbt_project_path = f"dbt_projects/{project_display_name}"
+            # dbt projects are typically siblings to the Dagster project, not inside it
+            # Path will be: ../dbt_projects/<project_name> (relative to Dagster project root)
+            dbt_project_path = f"../dbt_projects/{project_display_name}"
 
             # Scaffold dbt component using CLI
             self._scaffold_dbt_component(project_name, dbt_project_path)
@@ -97,7 +98,9 @@ class DagsterProjectGenerator:
         """Clone all dbt project repositories"""
         import subprocess
         
-        dbt_projects_dir = self.output_dir / "dbt_projects"
+        # dbt projects should be siblings to the Dagster project, not inside it
+        # This follows the typical Dagster + dbt project structure
+        dbt_projects_dir = self.output_dir.parent / "dbt_projects"
         dbt_projects_dir.mkdir(exist_ok=True)
         
         for project in projects:
@@ -316,9 +319,12 @@ root_module = "{project_package}"
         # Configure project as a dict with project_dir and profiles_dir
         # Use relative path from defs.yaml location since project_root template doesn't resolve in nested dicts
         # defs.yaml is at: <package>/defs/<component_name>/defs.yaml
-        # dbt project is at: dbt_projects/<project_name>
-        # From defs.yaml: up 3 levels (../../../) to project root, then into dbt_projects/<project_name>
-        relative_path = f"../../../{dbt_project_path}"
+        # dbt project is a sibling to Dagster project: ../dbt_projects/<project_name>
+        # From defs.yaml: up 3 levels (../../../) to Dagster project root, then one more (../) to parent, then dbt_projects/<project_name>
+        # So: ../../../../dbt_projects/<project_name>
+        # Remove the ../ prefix from dbt_project_path since we're already going up 4 levels
+        project_name_only = dbt_project_path.replace("../dbt_projects/", "")
+        relative_path = f"../../../../dbt_projects/{project_name_only}"
         defs_config = {
             "type": "dagster_dbt.DbtProjectComponent",
             "attributes": {
@@ -875,7 +881,10 @@ root_module = "{project_package}"
         content += "    exit 1\n"
         content += "}\n\n"
         content += "# Check if dbt projects are cloned\n"
-        content += "if [ ! -d \"dbt_projects\" ] || [ -z \"$(ls -A dbt_projects)\" ]; then\n"
+        # Check sibling dbt_projects directory
+        content += "PARENT_DIR=$(cd \"$(dirname \"$0\")\" && pwd)\n"
+        content += "DBT_PROJECTS_DIR=\"$PARENT_DIR/dbt_projects\"\n"
+        content += "if [ ! -d \"$DBT_PROJECTS_DIR\" ] || [ -z \"$(ls -A $DBT_PROJECTS_DIR)\" ]; then\n"
         content += "    echo \"⚠️  Warning: dbt_projects directory is empty. Run ./clone_dbt_projects.sh\"\n"
         content += "else\n"
         content += "    echo \"✓ dbt projects directory exists\"\n"
