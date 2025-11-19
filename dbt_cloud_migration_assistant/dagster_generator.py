@@ -314,14 +314,18 @@ root_module = "{project_package}"
         # Dagster 1.12 defs.yaml format - single object (not a list)
         # The defs.yaml should contain a single component definition
         # Configure project as a dict with project_dir and profiles_dir
-        # Use project_root template variable for portability across machines and cloud deployments
+        # Use relative path from defs.yaml location since project_root template doesn't resolve in nested dicts
+        # defs.yaml is at: <package>/defs/<component_name>/defs.yaml
+        # dbt project is at: dbt_projects/<project_name>
+        # Relative path: ../../../../dbt_projects/<project_name>
+        relative_path = f"../../../../{dbt_project_path}"
         defs_config = {
             "type": "dagster_dbt.DbtProjectComponent",
             "attributes": {
                 "project": {
-                    # Use project_root template variable for portability
-                    # This resolves to the Dagster project root directory
-                    "project_dir": f"${{{{ project_root }}}}/{dbt_project_path}",
+                    # Use relative path from defs.yaml location for portability
+                    # This works across machines and cloud deployments
+                    "project_dir": relative_path,
                     # Use env.DBT_PROFILES_DIR if set, otherwise use env.HOME + '/.dbt' for portability
                     # env.HOME is available in YAML template scope and works across platforms
                     "profiles_dir": "${{ env.DBT_PROFILES_DIR if env.DBT_PROFILES_DIR else env.HOME + '/.dbt' }}",
