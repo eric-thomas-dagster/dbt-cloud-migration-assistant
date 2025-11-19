@@ -83,23 +83,46 @@ class DbtCloudClient:
             Repository connection dictionary if found, None otherwise
         """
         try:
-            # Try to get repository connection from project details
+            # Get detailed project information
             project = self.get_project(project_id)
             
-            # Check for repository_connection field
+            # Check for repository_connection field (nested in project)
             repo_conn = project.get("repository_connection")
             if repo_conn:
-                return repo_conn
+                return repo_conn if isinstance(repo_conn, dict) else {"url": repo_conn}
             
-            # Check for repository field
+            # Check for repository field (could be nested)
             repo = project.get("repository")
             if repo:
-                return repo if isinstance(repo, dict) else {"url": repo}
+                if isinstance(repo, dict):
+                    return repo
+                elif isinstance(repo, str):
+                    return {"url": repo}
             
-            # Try repository connections endpoint
+            # Check for remote_url or git_url in project directly
+            for field in ["remote_url", "git_url", "repository_url"]:
+                if field in project:
+                    value = project.get(field)
+                    if value:
+                        return {"url": value} if isinstance(value, str) else value
+            
+            # Try repository connections endpoint (if it exists)
             try:
                 data = self._make_request(f"projects/{project_id}/repository/")
-                return data.get("data", {})
+                repo_data = data.get("data", {})
+                if repo_data:
+                    return repo_data
+            except:
+                pass
+            
+            # Try connections endpoint
+            try:
+                data = self._make_request(f"connections/")
+                connections = data.get("data", [])
+                # Find connection associated with this project
+                for conn in connections:
+                    if conn.get("project_id") == project_id:
+                        return conn
             except:
                 pass
                 
