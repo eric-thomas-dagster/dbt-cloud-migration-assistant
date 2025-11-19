@@ -111,7 +111,38 @@ def generate_profiles_yml(environments: List[Dict[str, Any]]) -> str:
             "target": "local"  # Default to local DuckDB for development
         }
 
-    # If no environments, create a template
+    # Always add a 'default' profile for compatibility with standard dbt projects
+    # This ensures projects that reference 'profile: default' in dbt_project.yml will work
+    if "default" not in profiles:
+        # Use the first environment's configuration, or create a minimal default
+        if profiles:
+            # Use the first profile's structure but name it 'default'
+            first_profile_name = list(profiles.keys())[0]
+            first_profile = profiles[first_profile_name]
+            profiles["default"] = first_profile.copy()
+        else:
+            # Create a minimal default profile if no environments exist
+            profiles["default"] = {
+                "outputs": {
+                    "prod": {  # Production target
+                        "type": "postgres",
+                        "host": "{{ env_var('DBT_HOST') }}",
+                        "user": "{{ env_var('DBT_USER') }}",
+                        "password": "{{ env_var('DBT_PASSWORD') }}",
+                        "port": 5432,
+                        "dbname": "{{ env_var('DBT_DATABASE') }}",
+                        "schema": "{{ env_var('DBT_SCHEMA') }}",
+                    },
+                    "local": {  # Local development target (DuckDB)
+                        "type": "duckdb",
+                        "path": "{{ env_var('DBT_DUCKDB_PATH', 'local_dev.duckdb') }}",
+                        "schema": "{{ env_var('DBT_DUCKDB_SCHEMA', 'dev') }}",
+                    }
+                },
+                "target": "local"  # Default to local DuckDB for development
+            }
+
+    # If no environments, create a template (legacy fallback)
     if not profiles:
         profiles = {
             "default": {
