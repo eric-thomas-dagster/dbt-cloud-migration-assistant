@@ -242,7 +242,7 @@ class DagsterProjectGenerator:
         pyproject_content = """[project]
 name = "dagster-dbt-migration"
 version = "0.1.0"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 dependencies = [
     "dagster[cli]>=1.12.0",
     "dagster-dbt>=0.22.0",
@@ -537,7 +537,7 @@ dependencies = [
             content = f"""[project]
 name = "dagster-dbt-migration"
 version = "0.1.0"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 dependencies = [
 """
             for dep in dependencies:
@@ -552,7 +552,7 @@ dependencies = [
         with open(pyproject_path, "r") as f:
             content = f.read()
 
-        # Simple approach: append missing dependencies
+        # Simple approach: append missing dependencies and update requires-python
         # In production, you might want to parse TOML properly
         lines = content.split("\n")
         new_lines = []
@@ -560,7 +560,15 @@ dependencies = [
         existing_deps = set()
         
         for line in lines:
-            if 'dependencies = [' in line:
+            # Update requires-python to >=3.10 for Dagster 1.12+ compatibility
+            if 'requires-python' in line and '<3.10' in line:
+                new_lines.append('requires-python = ">=3.10"')
+                continue
+            elif 'requires-python' in line:
+                # Replace any existing requires-python with >=3.10
+                new_lines.append('requires-python = ">=3.10"')
+                continue
+            elif 'dependencies = [' in line:
                 in_dependencies = True
                 new_lines.append(line)
             elif in_dependencies:
