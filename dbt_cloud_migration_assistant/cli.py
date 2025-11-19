@@ -37,7 +37,27 @@ from .adapter_detector import detect_adapters, extract_environment_variables
     is_flag=True,
     help="Skip confirmation prompts",
 )
-def main(api_key: str, account_id: int, output_dir: str, api_base_url: Optional[str], skip_confirm: bool):
+@click.option(
+    "--auto-setup",
+    is_flag=True,
+    help="Automatically clone repositories, copy profiles.yml, and install dependencies",
+)
+@click.option(
+    "--clone-repos",
+    is_flag=True,
+    help="Automatically clone dbt project repositories",
+)
+@click.option(
+    "--copy-profiles",
+    is_flag=True,
+    help="Automatically copy profiles.yml.template to ~/.dbt/profiles.yml",
+)
+@click.option(
+    "--install-deps",
+    is_flag=True,
+    help="Automatically install dependencies in the generated Dagster project",
+)
+def main(api_key: str, account_id: int, output_dir: str, api_base_url: Optional[str], skip_confirm: bool, auto_setup: bool, clone_repos: bool, copy_profiles: bool, install_deps: bool):
     """
     Migrate dbt Cloud projects, jobs, and schedules to Dagster.
 
@@ -142,24 +162,88 @@ def main(api_key: str, account_id: int, output_dir: str, api_base_url: Optional[
         click.echo("  Make sure Dagster 1.12+ is installed: pip install 'dagster[cli]>=1.12.0'", err=True)
         raise click.Abort()
 
+    # Auto-setup steps
+    if auto_setup:
+        clone_repos = True
+        copy_profiles = True
+        install_deps = True
+
+    if clone_repos:
+        click.echo("")
+        click.echo("📥 Cloning dbt project repositories...")
+        try:
+            for project in projects:
+                project_id = project.get("id")
+                if project_id not in project_repos:
+                    continue
+                project_name = project.get("name", f"project_{project_id}")
+                click.echo(f"  Cloning {project_name}...")
+            generator.clone_repositories(projects, project_repos)
+            click.echo("✓ All repositories cloned successfully")
+        except Exception as e:
+            click.echo(f"⚠ Failed to clone repositories: {e}", err=True)
+            click.echo("  You can run './clone_dbt_projects.sh' manually later", err=True)
+
+    if copy_profiles:
+        click.echo("")
+        click.echo("📋 Copying profiles.yml...")
+        try:
+            generator.copy_profiles_yml()
+            click.echo("✓ profiles.yml copied to ~/.dbt/profiles.yml")
+            click.echo("  ⚠ Remember to update credentials in ~/.dbt/profiles.yml", err=True)
+        except Exception as e:
+            click.echo(f"⚠ Failed to copy profiles.yml: {e}", err=True)
+            click.echo("  You can copy 'profiles.yml.template' to '~/.dbt/profiles.yml' manually", err=True)
+
+    if install_deps:
+        click.echo("")
+        click.echo("📦 Installing dependencies...")
+        try:
+            generator.install_dependencies()
+            click.echo("✓ Dependencies installed successfully")
+        except Exception as e:
+            click.echo(f"⚠ Failed to install dependencies: {e}", err=True)
+            click.echo(f"  You can run 'cd {output_dir} && pip install -e .' manually", err=True)
+
     # Summary
     click.echo("")
     click.echo("✅ Migration complete!")
     click.echo("")
     click.echo("📄 Migration Summary: See MIGRATION_SUMMARY.md for details")
     click.echo("")
-    click.echo("Next steps:")
-    click.echo(f"  1. Review the generated project in '{output_dir}/'")
-    click.echo("  2. Update the .env file with your database credentials")
-    if required_adapters:
-        click.echo(f"  3. Install dependencies (includes adapters: {', '.join(sorted(required_adapters))}):")
+    
+    # Show next steps based on what was done
+    remaining_steps = []
+    
+    if not clone_repos and not auto_setup:
+        remaining_steps.append(f"  1. Run './clone_dbt_projects.sh' to clone all dbt project repositories")
+    
+    if not copy_profiles and not auto_setup:
+        remaining_steps.append("  2. Copy 'profiles.yml.template' to '~/.dbt/profiles.yml' and update credentials")
+    
+    if not install_deps and not auto_setup:
+        if required_adapters:
+            remaining_steps.append(f"  3. Install dependencies (includes adapters: {', '.join(sorted(required_adapters))}):")
+        else:
+            remaining_steps.append("  3. Install dependencies:")
+        remaining_steps.append(f"     cd {output_dir} && pip install -e .")
+    
+    if remaining_steps:
+        click.echo("Next steps:")
+        click.echo(f"  1. Review the generated project in '{output_dir}/'")
+        click.echo("  2. Update the .env file with your database credentials")
+        for step in remaining_steps:
+            click.echo(step)
+        click.echo("  4. Run './validate_migration.sh' to validate the migration")
+        click.echo("  5. Start Dagster: cd dagster_project && dg dev")
     else:
-        click.echo("  3. Install dependencies:")
-    click.echo(f"     cd {output_dir} && pip install -e .")
-    click.echo("  4. Run './clone_dbt_projects.sh' to clone all dbt project repositories")
-    click.echo("  5. Copy 'profiles.yml.template' to '~/.dbt/profiles.yml' and update credentials")
-    click.echo("  6. Run './validate_migration.sh' to validate the migration")
-    click.echo("  7. Start Dagster: dg dev (or dagster dev)")
+        click.echo("Next steps:")
+        click.echo(f"  1. Review the generated project in '{output_dir}/'")
+        click.echo("  2. Update the .env file with your database credentials")
+        click.echo("  3. Update credentials in ~/.dbt/profiles.yml")
+        click.echo("  4. Run './validate_migration.sh' to validate the migration")
+        click.echo("  5. Start Dagster: cd dagster_project && dg dev")
+    
     click.echo("")
     click.echo("Note: All definitions are component-based YAML (no Python code generation!)")
     click.echo("      Jobs and schedules use custom components in defs/jobs/ and defs/schedules/")

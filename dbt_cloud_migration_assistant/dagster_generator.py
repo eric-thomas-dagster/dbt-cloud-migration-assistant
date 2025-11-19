@@ -91,6 +91,68 @@ class DagsterProjectGenerator:
         # Generate README
         self._generate_readme(projects, project_repos, required_adapters)
 
+    def clone_repositories(self, projects: List[Dict[str, Any]], project_repos: Dict[int, str]):
+        """Clone all dbt project repositories"""
+        import subprocess
+        
+        dbt_projects_dir = self.output_dir / "dbt_projects"
+        dbt_projects_dir.mkdir(exist_ok=True)
+        
+        for project in projects:
+            project_id = project.get("id")
+            if project_id not in project_repos:
+                continue
+            
+            project_name = project.get("name", f"project_{project_id}")
+            repo_url = project_repos[project_id]
+            project_dir = dbt_projects_dir / project_name
+            
+            if project_dir.exists():
+                continue  # Skip silently, CLI will handle messaging
+            
+            try:
+                subprocess.run(
+                    ["git", "clone", repo_url, str(project_dir)],
+                    check=True,
+                    capture_output=True,
+                    text=True
+                )
+            except subprocess.CalledProcessError as e:
+                raise Exception(f"Failed to clone {project_name}: {e.stderr}")
+
+    def copy_profiles_yml(self):
+        """Copy profiles.yml.template to ~/.dbt/profiles.yml"""
+        import shutil
+        from pathlib import Path
+        
+        # The template is generated in the output directory
+        template_path = self.output_dir / "profiles.yml.template"
+        if not template_path.exists():
+            raise FileNotFoundError(f"profiles.yml.template not found at {template_path}")
+        
+        dbt_dir = Path.home() / ".dbt"
+        dbt_dir.mkdir(exist_ok=True)
+        
+        target_path = dbt_dir / "profiles.yml"
+        
+        # Copy the file
+        shutil.copy2(template_path, target_path)
+
+    def install_dependencies(self):
+        """Install dependencies in the generated Dagster project"""
+        import subprocess
+        
+        try:
+            result = subprocess.run(
+                ["pip", "install", "-e", "."],
+                cwd=self.output_dir,
+                check=True,
+                capture_output=True,
+                text=True
+            )
+        except subprocess.CalledProcessError as e:
+            raise Exception(f"Failed to install dependencies: {e.stderr}")
+
     def _check_dagster_cli(self):
         """Check if Dagster CLI (dg) is available"""
         try:
