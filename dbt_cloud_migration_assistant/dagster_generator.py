@@ -314,13 +314,17 @@ root_module = "{project_package}"
         # Dagster 1.12 defs.yaml format - single object (not a list)
         # The defs.yaml should contain a single component definition
         # Configure project as a dict with project_dir and profiles_dir
-        # profiles_dir uses DBT_PROFILES_DIR env var (set in .env file)
+        # profiles_dir: Use env.DBT_PROFILES_DIR from .env file, or default to expanded ~/.dbt
+        import os
+        default_profiles_dir = os.path.expanduser("~/.dbt")
         defs_config = {
             "type": "dagster_dbt.DbtProjectComponent",
             "attributes": {
                 "project": {
                     "project_dir": f"${{{{ project_root }}}}/{dbt_project_path}",
-                    "profiles_dir": "${{ env_var('DBT_PROFILES_DIR', '~/.dbt') }}",
+                    # env.DBT_PROFILES_DIR is available in YAML template scope (from .env file)
+                    # Fallback to default if not set
+                    "profiles_dir": f"${{{{ env.DBT_PROFILES_DIR if env.DBT_PROFILES_DIR else '{default_profiles_dir}' }}}}",
                 },
             },
         }
