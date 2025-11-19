@@ -156,31 +156,31 @@ class DagsterProjectGenerator:
             raise Exception(f"Failed to install dependencies: {e.stderr}")
 
     def _check_dagster_cli(self):
-        """Check if Dagster CLI (dg) is available"""
+        """Check if Dagster CLI is available - prioritize create-dagster (recommended)"""
+        # Try create-dagster first (recommended per Dagster docs)
         try:
             result = subprocess.run(
-                ["dg", "--version"],
+                ["create-dagster", "--version"],
                 capture_output=True,
                 text=True,
                 check=True,
             )
+            self.cli_command = "create-dagster"
         except (subprocess.CalledProcessError, FileNotFoundError):
-            # Try create-dagster as fallback
+            # Fallback to dg
             try:
                 result = subprocess.run(
-                    ["create-dagster", "--version"],
+                    ["dg", "--version"],
                     capture_output=True,
                     text=True,
                     check=True,
                 )
-                self.cli_command = "create-dagster"
+                self.cli_command = "dg"
             except (subprocess.CalledProcessError, FileNotFoundError):
                 raise RuntimeError(
-                    "Dagster CLI (dg or create-dagster) not found. "
-                    "Please install Dagster 1.12+ with: pip install dagster[cli]"
+                    "Dagster CLI (create-dagster or dg) not found. "
+                    "Please install Dagster 1.12+ with: pip install dagster[cli] or uvx create-dagster@latest"
                 )
-        else:
-            self.cli_command = "dg"
 
     def _init_dagster_project(self):
         """Initialize Dagster project using CLI"""
@@ -202,10 +202,26 @@ class DagsterProjectGenerator:
         # Create parent directory if needed
         self.output_dir.parent.mkdir(parents=True, exist_ok=True)
 
-        # Use dg init or create-dagster to scaffold project
+        # Use create-dagster project to scaffold (per Dagster docs)
+        # This creates the proper src/ layout with definitions.py already set up
         try:
-            if self.cli_command == "dg":
-                # Try dg init - it may create project in current directory
+            # Try create-dagster first (recommended method per docs)
+            if self.cli_command == "create-dagster":
+                # create-dagster project_name creates a new directory
+                # It creates src/<project_name>/ with definitions.py already set up
+                subprocess.run(
+                    ["create-dagster", "project", project_name],
+                    check=True,
+                    cwd=self.output_dir.parent,
+                )
+                # Check if a subdirectory was created
+                possible_dirs = list(self.output_dir.parent.glob(f"{project_name}*"))
+                if possible_dirs and possible_dirs[0] != self.output_dir:
+                    # If target doesn't exist, we can use the created one
+                    if not self.output_dir.exists():
+                        self.output_dir = possible_dirs[0].resolve()
+            elif self.cli_command == "dg":
+                # Fallback to dg init if create-dagster not available
                 if not self.output_dir.exists():
                     self.output_dir.mkdir(parents=True, exist_ok=True)
                 
@@ -218,18 +234,8 @@ class DagsterProjectGenerator:
                     text=True,
                 )
             else:
-                # create-dagster project_name creates a new directory
-                subprocess.run(
-                    ["create-dagster", "project", project_name],
-                    check=True,
-                    cwd=self.output_dir.parent,
-                )
-                # Check if a subdirectory was created
-                possible_dirs = list(self.output_dir.parent.glob(f"{project_name}*"))
-                if possible_dirs and possible_dirs[0] != self.output_dir:
-                    # If target doesn't exist, we can use the created one
-                    if not self.output_dir.exists():
-                        self.output_dir = possible_dirs[0].resolve()
+                # No CLI available, create minimal structure
+                self._create_minimal_dagster_structure()
         except subprocess.CalledProcessError as e:
             # If CLI fails, create minimal structure manually
             self._create_minimal_dagster_structure()
@@ -322,28 +328,46 @@ root_module = "{project_package}"
 
     def _create_package_structure(self):
         """Create proper Python package structure"""
+        # Note: If create-dagster was used, it already created src/<project>/definitions.py
+        # We should NOT overwrite it. The standard definitions.py uses:
+        #   @definitions
+        #   def defs():
+        #       return load_from_defs_folder(path_within_project=Path(__file__).parent)
+        # This automatically loads YAML components from the defs/ directory.
+        # 
+        # We only create this structure if create-dagster failed and we're using fallback
         project_package = self._get_project_package_name()
-        package_dir = self.output_dir / project_package
-        package_dir.mkdir(exist_ok=True)
         
-        # Create __init__.py for the package
-        init_file = package_dir / "__init__.py"
-        if not init_file.exists():
-            with open(init_file, "w") as f:
-                f.write('"""Dagster project migrated from dbt Cloud."""\n')
+        # Check if we're using src/ layout (from create-dagster) or root layout (fallback)
+        src_package_dir = self.output_dir / "src" / project_package
+        root_package_dir = self.output_dir / project_package
         
-        # Create definitions.py - Dagster expects this module
-        # In Dagster 1.12+, definitions are loaded from YAML via the component system
-        definitions_file = package_dir / "definitions.py"
-        if not definitions_file.exists():
-            with open(definitions_file, "w") as f:
-                f.write('"""Dagster definitions loaded from YAML components."""\n\n')
-                f.write('from pathlib import Path\n')
-                f.write('from dagster_dg_core.definitions.yaml_definitions import load_definitions_from_yaml\n\n')
-                f.write('# Load all definitions from YAML files in the defs/ directory\n')
-                f.write('# This includes dbt components, jobs, and schedules\n')
-                f.write('defs_dir = Path(__file__).parent / "defs"\n')
-                f.write('defs = load_definitions_from_yaml(defs_dir)\n')
+        if src_package_dir.exists():
+            # Using src/ layout from create-dagster - don't overwrite definitions.py
+            package_dir = src_package_dir
+        else:
+            # Fallback: root layout - create structure manually
+            package_dir = root_package_dir
+            package_dir.mkdir(exist_ok=True)
+            
+            # Create __init__.py for the package
+            init_file = package_dir / "__init__.py"
+            if not init_file.exists():
+                with open(init_file, "w") as f:
+                    f.write('"""Dagster project migrated from dbt Cloud."""\n')
+            
+            # Only create definitions.py if it doesn't exist (create-dagster should have created it)
+            definitions_file = package_dir / "definitions.py"
+            if not definitions_file.exists():
+                # Use the pattern that loads YAML components from defs/ directory
+                with open(definitions_file, "w") as f:
+                    f.write('"""Dagster definitions loaded from YAML components."""\n\n')
+                    f.write('from pathlib import Path\n')
+                    f.write('from dagster_dg_core.definitions.yaml_definitions import load_definitions_from_yaml\n\n')
+                    f.write('# Load all definitions from YAML files in the defs/ directory\n')
+                    f.write('# This includes dbt components, jobs, and schedules\n')
+                    f.write('defs_dir = Path(__file__).parent / "defs"\n')
+                    f.write('defs = load_definitions_from_yaml(defs_dir)\n')
 
     def _register_custom_components(self):
         """Register custom components using Dagster CLI and copy component files"""
