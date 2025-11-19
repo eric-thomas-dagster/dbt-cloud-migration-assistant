@@ -753,6 +753,12 @@ root_module = "{project_package}"
             content += "# Use 'local' target for DuckDB-based local development\n"
             content += "# Set DBT_TARGET=local or use: dbt run --target local\n\n"
             
+            # Add DBT_PROFILES_DIR with expanded home directory
+            import os
+            profiles_dir = os.path.expanduser("~/.dbt")
+            content += f"# dbt profiles directory (expanded from ~/.dbt)\n"
+            content += f"DBT_PROFILES_DIR={profiles_dir}\n\n"
+            
             for key, value in sorted(env_vars.items()):
                 content += f"{key}={value}\n"
             
