@@ -367,7 +367,7 @@ root_module = "{project_package}"
                     f.write('from dagster import load_from_defs_folder\n\n')
                     f.write('# Load all definitions from YAML files in the defs/ directory\n')
                     f.write('# This includes dbt components, jobs, and schedules\n')
-                    f.write('defs = load_from_defs_folder(path_within_project=Path(__file__).parent / "defs")\n')
+                    f.write('defs = load_from_defs_folder(Path(__file__).parent / "defs")\n')
 
     def _register_custom_components(self):
         """Register custom components using Dagster CLI and copy component files"""
