@@ -71,6 +71,42 @@ class DbtCloudClient:
         """Fetch a specific project by ID"""
         data = self._make_request(f"projects/{project_id}/")
         return data.get("data", {})
+    
+    def get_repository_connection(self, project_id: int) -> Optional[Dict[str, Any]]:
+        """
+        Fetch repository connection information for a project
+        
+        Args:
+            project_id: The dbt Cloud project ID
+            
+        Returns:
+            Repository connection dictionary if found, None otherwise
+        """
+        try:
+            # Try to get repository connection from project details
+            project = self.get_project(project_id)
+            
+            # Check for repository_connection field
+            repo_conn = project.get("repository_connection")
+            if repo_conn:
+                return repo_conn
+            
+            # Check for repository field
+            repo = project.get("repository")
+            if repo:
+                return repo if isinstance(repo, dict) else {"url": repo}
+            
+            # Try repository connections endpoint
+            try:
+                data = self._make_request(f"projects/{project_id}/repository/")
+                return data.get("data", {})
+            except:
+                pass
+                
+        except Exception:
+            pass
+        
+        return None
 
     def get_jobs(self, project_id: Optional[int] = None) -> List[Dict[str, Any]]:
         """Fetch all jobs, optionally filtered by project"""

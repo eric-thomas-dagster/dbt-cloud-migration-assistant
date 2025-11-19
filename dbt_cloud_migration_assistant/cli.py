@@ -114,20 +114,27 @@ def main(api_key: str, account_id: int, output_dir: str, api_base_url: Optional[
     for project in projects:
         project_id = project.get("id")
         project_name = project.get("name", f"project_{project_id}")
-
-        # Try to discover repo
-        repo_url = discover_git_repo(project)
+        
+        # Try to get detailed project info and repository connection
+        repo_url = None
+        try:
+            repo_connection = client.get_repository_connection(project_id)
+            repo_url = discover_git_repo(project, repo_connection)
+        except Exception:
+            # If detailed fetch fails, try with just project data
+            repo_url = discover_git_repo(project)
+        
         if repo_url:
-            click.echo(f"  ✓ Found repo for {project_name}: {repo_url}")
             project_repos[project_id] = repo_url
+            click.echo(f"  ✓ Found repository for {project_name}: {repo_url}")
         else:
-            # Prompt user
+            # Prompt user if not found
             if not skip_confirm:
                 repo_url = prompt_for_git_repo(project_name, project_id)
                 project_repos[project_id] = repo_url
             else:
                 click.echo(
-                    f"  ⚠ No repo found for {project_name}, skipping...", err=True
+                    f"  ⚠ No repository found for {project_name}, skipping...", err=True
                 )
 
     if not project_repos:
