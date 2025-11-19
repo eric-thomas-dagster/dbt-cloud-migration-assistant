@@ -64,7 +64,8 @@ class DagsterProjectGenerator:
         # Extract environment variables
         env_vars = extract_environment_variables(environments, jobs)
 
-        # Register custom components using Dagster CLI
+        # Create package structure and register custom components
+        self._create_package_structure()
         self._register_custom_components()
         
         # Generate jobs and schedules as component-based YAML definitions
@@ -239,7 +240,8 @@ class DagsterProjectGenerator:
         (self.output_dir / "defs").mkdir(exist_ok=True)
         
         # Create minimal pyproject.toml
-        pyproject_content = """[project]
+        project_package = self._get_project_package_name()
+        pyproject_content = f"""[project]
 name = "dagster-dbt-migration"
 version = "0.1.0"
 requires-python = ">=3.10"
@@ -249,8 +251,14 @@ dependencies = [
     "dbt-core>=1.5.0",
 ]
 
+[tool.setuptools]
+packages = ["{project_package}"]
+
 [tool.dg]
 directory_type = "project"
+
+[tool.dg.project]
+root_module = "{project_package}"
 """
         with open(self.output_dir / "pyproject.toml", "w") as f:
             f.write(pyproject_content)
@@ -312,12 +320,26 @@ directory_type = "project"
         with open(defs_dir / "defs.yaml", "w") as f:
             yaml.dump(defs_config, f, default_flow_style=False, sort_keys=False)
 
+    def _create_package_structure(self):
+        """Create proper Python package structure"""
+        project_package = self._get_project_package_name()
+        package_dir = self.output_dir / project_package
+        package_dir.mkdir(exist_ok=True)
+        
+        # Create __init__.py for the package
+        init_file = package_dir / "__init__.py"
+        if not init_file.exists():
+            with open(init_file, "w") as f:
+                f.write('"""Dagster project migrated from dbt Cloud."""\n')
+
     def _register_custom_components(self):
         """Register custom components using Dagster CLI and copy component files"""
         # Components are automatically registered when in the project structure
         # We'll scaffold the component structure and then copy our implementations
         
-        components_dir = self.output_dir / "components"
+        project_package = self._get_project_package_name()
+        package_dir = self.output_dir / project_package
+        components_dir = package_dir / "components"
         components_dir.mkdir(parents=True, exist_ok=True)
         
         # Try to scaffold JobComponent using CLI (if it doesn't exist)
@@ -537,6 +559,7 @@ directory_type = "project"
 
         if not pyproject_path.exists():
             # Create new pyproject.toml
+            project_package = self._get_project_package_name()
             content = f"""[project]
 name = "dagster-dbt-migration"
 version = "0.1.0"
@@ -547,8 +570,17 @@ dependencies = [
                 content += f'    "{dep}",\n'
             content += """]
 
+[tool.setuptools]
+packages = ["{project_package}"]
+
+[tool.setuptools.package-data]
+"*" = ["py.typed"]
+
 [tool.dg]
 directory_type = "project"
+
+[tool.dg.project]
+root_module = "{project_package}"
 """
             with open(pyproject_path, "w") as f:
                 f.write(content)
@@ -560,21 +592,42 @@ directory_type = "project"
 
         # Simple approach: append missing dependencies and update requires-python
         # In production, you might want to parse TOML properly
+        project_package = self._get_project_package_name()
         lines = content.split("\n")
         new_lines = []
         in_dependencies = False
         existing_deps = set()
         has_tool_dg = False
+        has_tool_dg_project = False
+        has_setuptools = False
         
         for line in lines:
+            # Check if tool.dg.project section exists
+            if '[tool.dg.project]' in line:
+                has_tool_dg_project = True
+                new_lines.append(line)
+                continue
+            elif 'root_module' in line and 'tool.dg' in content[:content.find(line)]:
+                # Update root_module if it exists
+                new_lines.append(f'root_module = "{project_package}"')
+                continue
             # Check if tool.dg section exists
-            if '[tool.dg]' in line:
+            elif '[tool.dg]' in line:
                 has_tool_dg = True
                 new_lines.append(line)
                 continue
             elif 'tool.dg' in line and 'directory_type' in line:
                 # Update directory_type if it exists
                 new_lines.append('directory_type = "project"')
+                continue
+            # Check for setuptools configuration
+            elif '[tool.setuptools]' in line:
+                has_setuptools = True
+                new_lines.append(line)
+                continue
+            elif 'packages =' in line and has_setuptools:
+                # Update packages if setuptools section exists
+                new_lines.append(f'packages = ["{project_package}"]')
                 continue
             # Update requires-python to >=3.10 for Dagster 1.12+ compatibility
             elif 'requires-python' in line and '<3.10' in line:
@@ -606,8 +659,29 @@ directory_type = "project"
             else:
                 new_lines.append(line)
         
-        # Add tool.dg section if it doesn't exist
-        if not has_tool_dg:
+        # Add setuptools configuration if it doesn't exist
+        if not has_setuptools:
+            # Find where to insert - after [project] section
+            insert_idx = len(new_lines)
+            for i, line in enumerate(new_lines):
+                if line.strip() == "]" and in_dependencies:
+                    insert_idx = i + 1
+                    break
+            new_lines.insert(insert_idx, "")
+            new_lines.insert(insert_idx + 1, "[tool.setuptools]")
+            new_lines.insert(insert_idx + 2, f'packages = ["{project_package}"]')
+        
+        # Add tool.dg.project section if it doesn't exist
+        if not has_tool_dg_project:
+            if not has_tool_dg:
+                new_lines.append("")
+                new_lines.append("[tool.dg]")
+                new_lines.append('directory_type = "project"')
+            new_lines.append("")
+            new_lines.append("[tool.dg.project]")
+            new_lines.append(f'root_module = "{project_package}"')
+        elif not has_tool_dg:
+            # Add tool.dg section if project section exists but main section doesn't
             new_lines.append("")
             new_lines.append("[tool.dg]")
             new_lines.append('directory_type = "project"')
