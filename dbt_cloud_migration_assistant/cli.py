@@ -160,13 +160,8 @@ def main(api_key: str, account_id: int, output_dir: str, api_base_url: Optional[
         click.echo("  Make sure Dagster 1.12+ is installed: pip install 'dagster[cli]>=1.12.0'", err=True)
         raise click.Abort()
 
-    # Auto-setup steps
-    if auto_setup:
-        clone_repos = True
-        copy_profiles = True
-        install_deps = True
-
-    if clone_repos:
+    # Apply auto-setup (default behavior, unless --no-auto-setup is used)
+    if auto_setup and not no_auto_setup:
         click.echo("")
         click.echo("📥 Cloning dbt project repositories...")
         try:
@@ -181,8 +176,7 @@ def main(api_key: str, account_id: int, output_dir: str, api_base_url: Optional[
         except Exception as e:
             click.echo(f"⚠ Failed to clone repositories: {e}", err=True)
             click.echo("  You can run './clone_dbt_projects.sh' manually later", err=True)
-
-    if copy_profiles:
+        
         click.echo("")
         click.echo("📋 Copying profiles.yml...")
         try:
@@ -192,8 +186,7 @@ def main(api_key: str, account_id: int, output_dir: str, api_base_url: Optional[
         except Exception as e:
             click.echo(f"⚠ Failed to copy profiles.yml: {e}", err=True)
             click.echo("  You can copy 'profiles.yml.template' to '~/.dbt/profiles.yml' manually", err=True)
-
-    if install_deps:
+        
         click.echo("")
         click.echo("📦 Installing dependencies...")
         try:
