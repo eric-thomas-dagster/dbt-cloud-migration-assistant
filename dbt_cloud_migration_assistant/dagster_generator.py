@@ -326,10 +326,10 @@ root_module = "{project_package}"
                     # Use relative path from defs.yaml location for portability
                     # This works across machines and cloud deployments
                     "project_dir": relative_path,
-                    # Use env.DBT_PROFILES_DIR if set, otherwise use env.HOME + '/.dbt' for portability
-                    # Using a simpler expression that should work in Dagster's YAML template system
-                    # If DBT_PROFILES_DIR is not set, it will default to env.HOME + '/.dbt'
-                    "profiles_dir": "${{ env.DBT_PROFILES_DIR or env.HOME + '/.dbt' }}",
+                    # Use env.DBT_PROFILES_DIR if set (from .env file), otherwise fallback to env.HOME + '/.dbt'
+                    # For portability: DBT_PROFILES_DIR should be set in .env file (generated automatically)
+                    # If not set, users can manually set it or it will default to ~/.dbt via env.HOME
+                    "profiles_dir": "${{ env.DBT_PROFILES_DIR or (env.HOME + '/.dbt') }}",
                 },
             },
         }
