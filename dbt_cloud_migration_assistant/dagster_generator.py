@@ -359,15 +359,15 @@ root_module = "{project_package}"
             # Only create definitions.py if it doesn't exist (create-dagster should have created it)
             definitions_file = package_dir / "definitions.py"
             if not definitions_file.exists():
-                # Use the pattern that loads YAML components from defs/ directory
+                # Use the standard Dagster pattern that loads YAML components from defs/ directory
+                # This is the same pattern that create-dagster project uses
                 with open(definitions_file, "w") as f:
                     f.write('"""Dagster definitions loaded from YAML components."""\n\n')
                     f.write('from pathlib import Path\n')
-                    f.write('from dagster_dg_core.definitions.yaml_definitions import load_definitions_from_yaml\n\n')
+                    f.write('from dagster import load_from_defs_folder\n\n')
                     f.write('# Load all definitions from YAML files in the defs/ directory\n')
                     f.write('# This includes dbt components, jobs, and schedules\n')
-                    f.write('defs_dir = Path(__file__).parent / "defs"\n')
-                    f.write('defs = load_definitions_from_yaml(defs_dir)\n')
+                    f.write('defs = load_from_defs_folder(path_within_project=Path(__file__).parent / "defs")\n')
 
     def _register_custom_components(self):
         """Register custom components using Dagster CLI and copy component files"""
