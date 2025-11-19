@@ -219,10 +219,28 @@ class DagsterProjectGenerator:
                 )
                 # Check if a subdirectory was created
                 possible_dirs = list(self.output_dir.parent.glob(f"{project_name}*"))
-                if possible_dirs and possible_dirs[0] != self.output_dir:
-                    # If target doesn't exist, we can use the created one
-                    if not self.output_dir.exists():
-                        self.output_dir = possible_dirs[0].resolve()
+                if possible_dirs:
+                    created_dir = possible_dirs[0].resolve()
+                    # If create-dagster created a nested directory, move contents up
+                    if created_dir != self.output_dir and created_dir.exists():
+                        # Move all contents from nested directory to output_dir
+                        if not self.output_dir.exists():
+                            self.output_dir.mkdir(parents=True, exist_ok=True)
+                        import shutil
+                        for item in created_dir.iterdir():
+                            if item.name != self.output_dir.name:  # Avoid moving into itself
+                                dest = self.output_dir / item.name
+                                if dest.exists():
+                                    if dest.is_dir():
+                                        shutil.rmtree(dest)
+                                    else:
+                                        dest.unlink()
+                                shutil.move(str(item), str(dest))
+                        # Remove the nested directory if empty
+                        try:
+                            created_dir.rmdir()
+                        except:
+                            pass
             elif self.cli_command == "dg":
                 # Fallback to dg init if create-dagster not available
                 if not self.output_dir.exists():
@@ -285,28 +303,10 @@ root_module = "{project_package}"
             component_name: Name for the dbt component
             dbt_project_path: Relative path to the dbt project directory
         """
-        try:
-            # Use dg scaffold to create dbt component
-            # Format: dg scaffold defs dagster_dbt.DbtProjectComponent <name> --project-path <path>
-            cmd = [
-                "dg",
-                "scaffold",
-                "defs",
-                "dagster_dbt.DbtProjectComponent",
-                component_name,
-                "--project-path",
-                dbt_project_path,
-            ]
-
-            subprocess.run(
-                cmd,
-                check=True,
-                cwd=self.output_dir,
-                capture_output=True,
-            )
-        except subprocess.CalledProcessError as e:
-            # If scaffold fails, we'll create the defs.yaml manually
-            self._create_dbt_component_manual(component_name, dbt_project_path)
+        # Always use manual creation since dg scaffold creates wrong format
+        # The scaffold command doesn't support the nested dict format we need
+        # for project_dir and profiles_dir
+        self._create_dbt_component_manual(component_name, dbt_project_path)
 
     def _create_dbt_component_manual(self, component_name: str, dbt_project_path: str):
         """Manually create dbt component defs.yaml if CLI fails"""
