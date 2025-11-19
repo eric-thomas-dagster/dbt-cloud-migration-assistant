@@ -188,7 +188,8 @@ class DagsterProjectGenerator:
         # If directory exists and is not empty, we'll work with it
         if self.output_dir.exists() and any(self.output_dir.iterdir()):
             # Check if it's already a Dagster project
-            if (self.output_dir / "pyproject.toml").exists() or (self.output_dir / "defs").exists():
+            project_package = self._get_project_package_name()
+            if (self.output_dir / "pyproject.toml").exists() or (self.output_dir / project_package / "defs").exists():
                 # It's already a Dagster project, we can work with it
                 return
             else:
@@ -236,8 +237,11 @@ class DagsterProjectGenerator:
         """Create minimal Dagster project structure if CLI fails"""
         self.output_dir.mkdir(parents=True, exist_ok=True)
         
-        # Create defs directory
-        (self.output_dir / "defs").mkdir(exist_ok=True)
+        # Create package and defs directory
+        project_package = self._get_project_package_name()
+        package_dir = self.output_dir / project_package
+        package_dir.mkdir(exist_ok=True)
+        (package_dir / "defs").mkdir(exist_ok=True)
         
         # Create minimal pyproject.toml
         project_package = self._get_project_package_name()
@@ -296,7 +300,8 @@ root_module = "{project_package}"
 
     def _create_dbt_component_manual(self, component_name: str, dbt_project_path: str):
         """Manually create dbt component defs.yaml if CLI fails"""
-        defs_dir = self.output_dir / "defs" / component_name
+        project_package = self._get_project_package_name()
+        defs_dir = self.output_dir / project_package / "defs" / component_name
         defs_dir.mkdir(parents=True, exist_ok=True)
 
         # Dagster 1.12 defs.yaml format - list of definitions
@@ -488,8 +493,9 @@ root_module = "{project_package}"
 
         # Write jobs as component-based YAML
         # Use dg scaffold defs to create directory structure, then populate YAML
+        project_package = self._get_project_package_name()
         if all_job_defs:
-            jobs_dir = self.output_dir / "defs" / "jobs"
+            jobs_dir = self.output_dir / project_package / "defs" / "jobs"
             
             # Try to use dg scaffold defs to create the structure
             try:
@@ -516,7 +522,7 @@ root_module = "{project_package}"
 
         # Write schedules as component-based YAML
         if all_schedule_defs:
-            schedules_dir = self.output_dir / "defs" / "schedules"
+            schedules_dir = self.output_dir / project_package / "defs" / "schedules"
             
             # Try to use dg scaffold defs to create the structure
             try:
