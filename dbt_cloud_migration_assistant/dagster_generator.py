@@ -328,6 +328,22 @@ root_module = "{project_package}"
         if not init_file.exists():
             with open(init_file, "w") as f:
                 f.write('"""Dagster project migrated from dbt Cloud."""\n')
+        
+        # Create definitions.py - Dagster expects this module
+        # With component-based YAML, this can be minimal as definitions are loaded from YAML
+        definitions_file = package_dir / "definitions.py"
+        if not definitions_file.exists():
+            with open(definitions_file, "w") as f:
+                f.write('"""Dagster definitions loaded from YAML components."""\n')
+                f.write('\n')
+                f.write('import dagster as dg\n')
+                f.write('\n')
+                f.write('# Definitions are loaded from YAML files in defs/ directory\n')
+                f.write('# This file exists for compatibility with Dagster\'s module structure\n')
+                f.write('# All definitions are component-based and defined in YAML\n')
+                f.write('\n')
+                f.write('# Empty Definitions - components are loaded from YAML\n')
+                f.write('defs = dg.Definitions()\n')
 
     def _register_custom_components(self):
         """Register custom components using Dagster CLI and copy component files"""
