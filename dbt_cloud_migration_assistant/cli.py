@@ -210,37 +210,24 @@ def main(api_key: str, account_id: int, output_dir: str, api_base_url: Optional[
     click.echo("📄 Migration Summary: See MIGRATION_SUMMARY.md for details")
     click.echo("")
     
-    # Show next steps based on what was done
-    remaining_steps = []
-    
-    if not clone_repos and not auto_setup:
-        remaining_steps.append(f"  1. Run './clone_dbt_projects.sh' to clone all dbt project repositories")
-    
-    if not copy_profiles and not auto_setup:
-        remaining_steps.append("  2. Copy 'profiles.yml.template' to '~/.dbt/profiles.yml' and update credentials")
-    
-    if not install_deps and not auto_setup:
-        if required_adapters:
-            remaining_steps.append(f"  3. Install dependencies (includes adapters: {', '.join(sorted(required_adapters))}):")
-        else:
-            remaining_steps.append("  3. Install dependencies:")
-        remaining_steps.append(f"     cd {output_dir} && pip install -e .")
-    
-    if remaining_steps:
+    # Show next steps
+    if no_auto_setup:
         click.echo("Next steps:")
-        click.echo(f"  1. Review the generated project in '{output_dir}/'")
-        click.echo("  2. Update the .env file with your database credentials")
-        for step in remaining_steps:
-            click.echo(step)
-        click.echo("  4. Run './validate_migration.sh' to validate the migration")
-        click.echo("  5. Start Dagster: cd dagster_project && dg dev")
+        click.echo(f"  1. Run './clone_dbt_projects.sh' to clone all dbt project repositories")
+        click.echo("  2. Copy 'profiles.yml.template' to '~/.dbt/profiles.yml' and update credentials")
+        if required_adapters:
+            click.echo(f"  3. Install dependencies (includes adapters: {', '.join(sorted(required_adapters))}):")
+        else:
+            click.echo("  3. Install dependencies:")
+        click.echo(f"     cd {output_dir} && pip install -e .")
+        click.echo(f"  4. Start Dagster: cd {output_dir} && dg dev")
     else:
         click.echo("Next steps:")
         click.echo(f"  1. Review the generated project in '{output_dir}/'")
-        click.echo("  2. Update the .env file with your database credentials")
+        click.echo("  2. Update the .env file with your database credentials (if needed)")
         click.echo("  3. Update credentials in ~/.dbt/profiles.yml")
-        click.echo("  4. Run './validate_migration.sh' to validate the migration")
-        click.echo("  5. Start Dagster: cd dagster_project && dg dev")
+        click.echo(f"  4. Run './validate_migration.sh' to validate the migration")
+        click.echo(f"  5. Start Dagster: cd {output_dir} && dg dev")
     
     click.echo("")
     click.echo("Note: All definitions are component-based YAML (no Python code generation!)")
