@@ -77,12 +77,6 @@ class DbtCloudSensorComponent(dg.Component, dg.Model, dg.Resolvable):
         monitored_job = self.monitored_job_name
         job_to_trigger = self.job_name
         
-        # We need to resolve the job definition to pass it to the decorator
-        # Since we're in a component, we'll need to get the job from the context
-        # For now, we'll use job_name as a string and let Dagster resolve it
-        # Note: run_status_sensor may not support job parameter directly,
-        # but we'll try to add it for better association
-        
         # Build sensor parameters
         # The sensor monitors a specific job's run status and triggers another job
         # Add job_name to associate the sensor with the target job (similar to @sensor(job=...))
