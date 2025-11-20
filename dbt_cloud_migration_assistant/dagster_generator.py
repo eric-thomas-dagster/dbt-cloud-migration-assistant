@@ -525,13 +525,13 @@ root_module = "{project_package}"
             # Create minimal __init__.py if it doesn't exist
             with open(init_file, "w") as f:
                 f.write('"""Custom Dagster components for jobs, schedules, and sensors."""\n\n')
-                f.write("from .job import JobComponent\n")
-                f.write("from .schedule import ScheduleComponent\n")
-                f.write("from .sensor import SensorComponent\n\n")
+                f.write("from .job import DbtCloudJobComponent\n")
+                f.write("from .schedule import DbtCloudScheduleComponent\n")
+                f.write("from .sensor import DbtCloudSensorComponent\n\n")
                 f.write("__all__ = [\n")
-            f.write('    "DbtCloudJobComponent",\n')
-            f.write('    "DbtCloudScheduleComponent",\n')
-            f.write('    "DbtCloudSensorComponent",\n')
+                f.write('    "DbtCloudJobComponent",\n')
+                f.write('    "DbtCloudScheduleComponent",\n')
+                f.write('    "DbtCloudSensorComponent",\n')
                 f.write("]\n")
 
     def _generate_jobs_and_schedules(
@@ -1272,7 +1272,7 @@ root_module = "{project_package}"
         content += "**Dagster Pattern**: In Dagster, the recommended pattern is to have **one job definition** that works across all deployments, using deployment-aware target selection:\n\n"
         content += "```yaml\n"
         content += "# Single job that works in all deployments\n"
-        content += "type: dagster_dbt_migration.components.job.JobComponent\n"
+        content += "type: dagster_dbt_migration.components.job.DbtCloudJobComponent\n"
         content += "attributes:\n"
         content += "  job_name: analytics_job\n"
         content += "  asset_selection:\n"
@@ -1390,9 +1390,9 @@ dagster dev
 
 - `defs/` - Contains component and definition files (all YAML-based)
   - `defs/<project_name>/` - dbt component definitions (created via `dg scaffold` as YAML)
-  - `defs/jobs/defs.yaml` - Job component definitions (using `components.job.JobComponent`)
-  - `defs/schedules/defs.yaml` - Schedule component definitions (using `components.schedule.ScheduleComponent`)
-- `components/` - Custom component implementations (JobComponent, ScheduleComponent)
+  - `defs/jobs/defs.yaml` - Job component definitions (using `components.job.DbtCloudJobComponent`)
+  - `defs/schedules/defs.yaml` - Schedule component definitions (using `components.schedule.DbtCloudScheduleComponent`)
+- `components/` - Custom component implementations (DbtCloudJobComponent, DbtCloudScheduleComponent, DbtCloudSensorComponent)
 - `.env` - Environment variables (gitignored)
 - `pyproject.toml` - Project dependencies including dbt adapters and dagster-cloud
 
