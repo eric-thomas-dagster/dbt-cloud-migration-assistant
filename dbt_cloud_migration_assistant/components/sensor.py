@@ -79,11 +79,11 @@ class DbtCloudSensorComponent(dg.Component, dg.Model, dg.Resolvable):
         
         # Build sensor parameters
         # The sensor monitors a specific job's run status and triggers another job
-        # Add job_name to associate the sensor with the target job (similar to @sensor(job=...))
+        # Note: run_status_sensor doesn't support job_name parameter like regular @sensor decorator
+        # The target job is specified in the RunRequest instead
         sensor_params = {
             "name": self.sensor_name,
             "run_status": dagster_status,
-            "job_name": job_to_trigger,  # Associate sensor with the target job
             "description": self.description or f"Monitor {monitored_job} for {self.run_status} and trigger {job_to_trigger}",
             "minimum_interval_seconds": self.minimum_interval_seconds,
             "default_status": (
