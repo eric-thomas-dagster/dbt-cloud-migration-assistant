@@ -554,7 +554,7 @@ root_module = "{project_package}"
                     if settings.get("threads"):
                         tags["dbt_threads"] = str(settings.get("threads"))
                     if settings.get("target_name"):
-                        tags["dbt_target"] = settings.get("target_name")
+                        tags["dbt_target"] = str(settings.get("target_name"))
                     if tags:
                         job_attributes["tags"] = tags
                 
