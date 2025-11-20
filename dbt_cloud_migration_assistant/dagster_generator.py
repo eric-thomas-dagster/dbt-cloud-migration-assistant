@@ -557,10 +557,7 @@ root_module = "{project_package}"
                         all_schedule_defs.append(schedule_def)
                 
                 # Handle job completion triggers (job runs after another job completes)
-                # Note: Dagster doesn't have direct job completion triggers, but we can:
-                # 1. Add a comment/note in the job description
-                # 2. Create a sensor (future enhancement)
-                # For now, we'll document it in the job description
+                # Create a sensor to monitor the trigger job's run status
                 completion_trigger = job.get("job_completion_trigger_condition")
                 if completion_trigger:
                     trigger_job_id = completion_trigger.get("condition", {}).get("job_id")
@@ -569,13 +566,48 @@ root_module = "{project_package}"
                     trigger_job = next((j for j in project_jobs if j.get("id") == trigger_job_id), None)
                     if trigger_job:
                         trigger_job_name = self._sanitize_name(trigger_job.get("name", f"job_{trigger_job_id}"))
+                        # Ensure unique trigger job name (check if we've seen this job name before)
+                        existing_trigger_names = [self._sanitize_name(j.get("name", f"job_{j.get('id')}")) for j in project_jobs[:project_jobs.index(trigger_job)]]
+                        if trigger_job_name in existing_trigger_names:
+                            trigger_job_name = f"{trigger_job_name}_{trigger_job_id}"
                         trigger_job_name_safe = f"{project_name}_{trigger_job_name}"
-                        # Update job description to note the dependency
-                        status_text = "success" if 10 in trigger_statuses else "completion"
-                        job_attributes["description"] = (
-                            f"{job_attributes.get('description', '')} "
-                            f"[Triggered by: {trigger_job_name_safe} on {status_text}]"
-                        ).strip()
+                        
+                        # Map dbt Cloud status codes to Dagster run statuses
+                        # dbt Cloud status codes: 1=Queued, 2=Started, 3=Running, 10=Success, 20=Error, 30=Cancelled
+                        # We'll create sensors for each status in trigger_statuses
+                        for status_code in trigger_statuses:
+                            if status_code == 10:  # Success
+                                dagster_status = "SUCCESS"
+                            elif status_code == 20:  # Error
+                                dagster_status = "FAILURE"
+                            elif status_code == 30:  # Cancelled
+                                dagster_status = "CANCELED"
+                            elif status_code == 2:  # Started
+                                dagster_status = "STARTED"
+                            else:
+                                # Default to SUCCESS for unknown statuses
+                                dagster_status = "SUCCESS"
+                            
+                            # Create sensor name (include status if multiple statuses)
+                            if len(trigger_statuses) > 1:
+                                sensor_name = f"{job_name_safe}_sensor_{dagster_status.lower()}"
+                            else:
+                                sensor_name = f"{job_name_safe}_sensor"
+                            
+                            sensor_def = {
+                                "type": f"{project_package}.components.sensor.SensorComponent",
+                                "attributes": {
+                                    "sensor_name": sensor_name,
+                                    "sensor_type": "run_status",
+                                    "job_name": job_name_safe,  # The job to trigger
+                                    "monitored_job_name": trigger_job_name_safe,  # The job to monitor
+                                    "run_status": dagster_status,
+                                    "description": f"Sensor migrated from dbt Cloud: triggers {job.get('name', f'job_{job_id}')} when {trigger_job_name_safe} completes with status {dagster_status}",
+                                    "minimum_interval_seconds": 30,
+                                    "default_status": "RUNNING",
+                                },
+                            }
+                            all_sensor_defs.append(sensor_def)
 
         # Write jobs as component-based YAML
         # Each component should be in its own file or as a single object
