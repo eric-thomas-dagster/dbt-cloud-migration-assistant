@@ -73,12 +73,16 @@ class DbtCloudSensorComponent(dg.Component, dg.Model, dg.Resolvable):
         }
         dagster_status = status_map.get(self.run_status, dg.DagsterRunStatus.SUCCESS)
         
+        # Store monitored_job_name and job_to_trigger for use in the sensor function
+        monitored_job = self.monitored_job_name
+        job_to_trigger = self.job_name
+        
         # Build sensor parameters
-        # We'll filter by job name in the sensor function itself
+        # The sensor monitors a specific job's run status and triggers another job
         sensor_params = {
             "name": self.sensor_name,
             "run_status": dagster_status,
-            "description": self.description or f"Monitor {self.monitored_job_name} for {self.run_status}",
+            "description": self.description or f"Monitor {monitored_job} for {self.run_status} and trigger {job_to_trigger}",
             "minimum_interval_seconds": self.minimum_interval_seconds,
             "default_status": (
                 dg.DefaultSensorStatus.RUNNING
@@ -87,22 +91,21 @@ class DbtCloudSensorComponent(dg.Component, dg.Model, dg.Resolvable):
             ),
         }
         
-        # Store monitored_job_name for use in the sensor function
-        monitored_job = self.monitored_job_name
-        job_to_trigger = self.job_name
-        
         @dg.run_status_sensor(**sensor_params)
         def status_sensor(context: dg.RunStatusSensorContext):
-            """Sensor that triggers on run status changes."""
+            """Sensor that triggers on run status changes for a specific job."""
             # Filter by monitored job name if specified
+            # The sensor will be called for all job status changes, but we only want to trigger
+            # when the monitored job changes status
             if monitored_job:
                 # Check if the run that changed status is for the monitored job
                 if context.dagster_run.job_name != monitored_job:
                     return dg.SkipReason(f"Run is for job '{context.dagster_run.job_name}', not monitored job '{monitored_job}'")
             
             # Return RunRequest with the job to trigger
+            # The job_name in RunRequest specifies which job to run when the sensor fires
             return dg.RunRequest(
-                run_key=f"status_{context.dagster_run.run_id}",
+                run_key=f"status_{context.dagster_run.run_id}_{job_to_trigger}",
                 job_name=job_to_trigger,
             )
 
