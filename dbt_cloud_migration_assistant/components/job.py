@@ -1,6 +1,7 @@
 """Job component for Dagster Designer."""
 
-from typing import Optional
+from typing import Optional, Any
+from pydantic import field_validator
 
 import dagster as dg
 from dagster._core.definitions.asset_selection import AssetSelection
@@ -15,10 +16,15 @@ class JobComponent(dg.Component, dg.Model, dg.Resolvable):
     tags: Optional[dict[str, str]] = None
     config: Optional[dict] = None
     
-    def model_post_init(self, __context):
-        """Ensure all tag values are strings after model initialization."""
-        if self.tags:
-            self.tags = {k: str(v) for k, v in self.tags.items()}
+    @field_validator('tags', mode='before')
+    @classmethod
+    def convert_tag_values_to_strings(cls, v: Any) -> Optional[dict[str, str]]:
+        """Convert all tag values to strings (YAML may parse numbers as ints)."""
+        if v is None:
+            return None
+        if isinstance(v, dict):
+            return {k: str(val) for k, val in v.items()}
+        return v
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         """Build Dagster definitions from component parameters."""
