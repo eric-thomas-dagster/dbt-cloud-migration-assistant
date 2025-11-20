@@ -1634,17 +1634,25 @@ Jobs and schedules are defined using **custom components** in YAML:
             
             # Extract the prefix (PROD, STG, DEV, GENERAL)
             if "PROD" in deployment_type_str.upper() or "PRODUCTION" in deployment_type_str.upper():
-                return "PROD"
+                result = "PROD"
             elif "STG" in deployment_type_str.upper() or "STAGING" in deployment_type_str.upper():
-                return "STG"
+                result = "STG"
             elif "DEV" in deployment_type_str.upper() or "DEVELOPMENT" in deployment_type_str.upper():
-                return "DEV"
+                result = "DEV"
             elif "GENERAL" in deployment_type_str.upper():
-                return "GENERAL"
+                result = "GENERAL"
             else:
                 # Fallback: use first word or uppercase the whole thing
                 words = deployment_type_str.upper().split()
-                return words[0] if words else deployment_type_str.upper()
+                result = words[0] if words else deployment_type_str.upper()
+            
+            # Debug output (remove after confirming it works)
+            if not hasattr(self, '_deployment_type_debug_printed'):
+                import sys
+                print(f"✅ Found deployment_type: '{deployment_type}' -> prefix: '{result}'", file=sys.stderr)
+                self._deployment_type_debug_printed = True
+            
+            return result
         
         return ""
     
