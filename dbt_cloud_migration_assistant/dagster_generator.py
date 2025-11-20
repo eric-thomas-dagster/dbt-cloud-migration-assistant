@@ -492,6 +492,11 @@ root_module = "{project_package}"
             for job in project_jobs:
                 job_id = job.get("id")
                 job_name = self._sanitize_name(job.get("name", f"job_{job_id}"))
+                # Ensure unique job names by including job ID if names are duplicated
+                # Check if we've already seen this job name
+                existing_job_names = [self._sanitize_name(j.get("name", f"job_{j.get('id')}")) for j in project_jobs[:project_jobs.index(job)]]
+                if job_name in existing_job_names:
+                    job_name = f"{job_name}_{job_id}"
                 job_name_safe = f"{project_name}_{job_name}"
 
                 # Create job component definition
