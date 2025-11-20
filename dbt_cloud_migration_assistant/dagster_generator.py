@@ -1609,6 +1609,19 @@ Jobs and schedules are defined using **custom components** in YAML:
             or env.get("settings", {}).get("deployment_type") if isinstance(env.get("settings"), dict) else None
         )
         
+        # If not found, print available keys for debugging (only first time)
+        if not deployment_type and not hasattr(self, '_debug_printed'):
+            import sys
+            print(f"\n⚠️  Deployment type not found in environment object. Available keys: {list(env.keys())}", file=sys.stderr)
+            print(f"   Environment name: {env.get('name')}", file=sys.stderr)
+            print(f"   Environment ID: {env.get('id')}", file=sys.stderr)
+            # Check nested structures
+            if env.get("deployment"):
+                print(f"   Deployment keys: {list(env.get('deployment', {}).keys())}", file=sys.stderr)
+            if env.get("settings"):
+                print(f"   Settings keys: {list(env.get('settings', {}).keys())}", file=sys.stderr)
+            self._debug_printed = True
+        
         if deployment_type:
             # Handle different formats:
             # - String values: "production", "staging", "general", "PROD Production", "STG Staging"
