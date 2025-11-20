@@ -597,15 +597,30 @@ root_module = "{project_package}"
                 }
                 
                 # Add tags if available (e.g., from job settings)
+                # Also include environment-specific target from job's environment
+                tags = {}
                 if job.get("settings"):
                     settings = job.get("settings", {})
-                    tags = {}
                     if settings.get("threads"):
                         tags["dbt_threads"] = str(settings.get("threads"))
                     if settings.get("target_name"):
                         tags["dbt_target"] = str(settings.get("target_name"))
-                    if tags:
-                        job_attributes["tags"] = tags
+                
+                # Get environment-specific target from job's environment_id
+                # This maps dbt Cloud environments (STG, PROD) to dbt targets
+                job_env_id = job.get("environment_id")
+                if job_env_id:
+                    # Find the environment to get its name
+                    env = next((e for e in environments if e.get("id") == job_env_id), None)
+                    if env:
+                        env_name = env.get("name", "").lower().replace(" ", "_")
+                        # Use environment name as target (e.g., "stg", "prod")
+                        # This allows jobs to target the correct environment
+                        tags["dbt_target"] = env_name
+                        tags["dbt_environment"] = env_name  # Also tag with environment for clarity
+                
+                if tags:
+                    job_attributes["tags"] = tags
                 
                 job_def = {
                     "type": f"{project_package}.components.job.JobComponent",
