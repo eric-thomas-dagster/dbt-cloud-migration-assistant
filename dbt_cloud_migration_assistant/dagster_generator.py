@@ -437,7 +437,7 @@ root_module = "{project_package}"
                     f.write('from dagster import load_from_defs_folder\n\n')
                     f.write('# Import custom components to ensure they\'re registered\n')
                     f.write('# This makes them discoverable by load_from_defs_folder\n')
-                    f.write('from .components import JobComponent, ScheduleComponent, SensorComponent\n\n')
+                    f.write('from .components import DbtCloudJobComponent, DbtCloudScheduleComponent, DbtCloudSensorComponent\n\n')
                     f.write('# Load all definitions from YAML files in the defs/ directory\n')
                     f.write('# With the standard folder structure (each component in its own folder with defs.yaml),\n')
                     f.write('# load_from_defs_folder will automatically discover all components including:\n')
@@ -1399,8 +1399,9 @@ dagster dev
 ## About Jobs and Schedules
 
 Jobs and schedules are defined using **custom components** in YAML:
-- **Jobs**: Defined using `components.job.JobComponent` in `defs/jobs/defs.yaml`
-- **Schedules**: Defined using `components.schedule.ScheduleComponent` in `defs/schedules/defs.yaml`
+- **Jobs**: Defined using `components.job.DbtCloudJobComponent` in `defs/jobs/defs.yaml`
+- **Schedules**: Defined using `components.schedule.DbtCloudScheduleComponent` in `defs/schedules/defs.yaml`
+- **Sensors**: Defined using `components.sensor.DbtCloudSensorComponent` in `defs/sensors/defs.yaml`
 - All definitions are component-based YAML - no Python code generation needed!
 - Components are automatically loaded by Dagster's component system
 
