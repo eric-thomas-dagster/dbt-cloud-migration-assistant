@@ -516,12 +516,10 @@ root_module = "{project_package}"
         if sensor_component_source.exists():
             shutil.copy2(sensor_component_source, sensor_component_file)
         
-        # Ensure __init__.py exists
+        # Ensure __init__.py exists (always generate with correct names, don't copy from source)
         init_file = components_dir / "__init__.py"
-        init_source = Path(__file__).parent / "components" / "__init__.py"
-        if init_source.exists():
-            shutil.copy2(init_source, init_file)
-        elif not init_file.exists():
+        # Always generate __init__.py with correct component names
+        if True:  # Always generate to ensure correct names
             # Create minimal __init__.py if it doesn't exist
             with open(init_file, "w") as f:
                 f.write('"""Custom Dagster components for jobs, schedules, and sensors."""\n\n')
