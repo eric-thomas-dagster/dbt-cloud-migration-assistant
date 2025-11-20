@@ -4,18 +4,26 @@ from typing import List, Dict, Any, Set, Optional
 
 
 # Mapping of dbt Cloud connection types to dbt adapter packages
+# Based on: https://docs.getdbt.com/docs/cloud/connect-data-platform/about-connections
 ADAPTER_MAPPING = {
     "snowflake": "dbt-snowflake",
     "bigquery": "dbt-bigquery",
     "postgres": "dbt-postgres",
+    "alloydb": "dbt-postgres",  # AlloyDB uses PostgreSQL adapter
     "redshift": "dbt-redshift",
     "databricks": "dbt-databricks",
     "spark": "dbt-spark",
+    "apache_spark": "dbt-spark",
     "duckdb": "dbt-duckdb",
     "sqlserver": "dbt-sqlserver",
+    "synapse": "dbt-sqlserver",  # Azure Synapse uses SQL Server adapter
+    "azure_synapse": "dbt-sqlserver",
+    "fabric": "dbt-sqlserver",  # Microsoft Fabric uses SQL Server adapter
+    "microsoft_fabric": "dbt-sqlserver",
     "oracle": "dbt-oracle",
     "athena": "dbt-athena",
     "trino": "dbt-trino",
+    "starburst": "dbt-trino",  # Starburst uses Trino adapter
     "clickhouse": "dbt-clickhouse",
     "dremio": "dbt-dremio",
     "exasol": "dbt-exasol",

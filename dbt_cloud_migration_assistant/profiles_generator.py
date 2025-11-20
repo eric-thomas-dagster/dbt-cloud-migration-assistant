@@ -95,7 +95,8 @@ def generate_profiles_yml(environments: List[Dict[str, Any]]) -> str:
                 profile_config["priority"] = get_field_value("priority")
             if get_field_value("maximum_bytes_billed"):
                 profile_config["maximum_bytes_billed"] = get_field_value("maximum_bytes_billed")
-        elif connection_type == "postgres" or connection_type == "redshift":
+        elif connection_type == "postgres" or connection_type == "alloydb":
+            # PostgreSQL and AlloyDB use the same profile structure
             profile_config.update({
                 "host": get_field_value("host") or connection.get("host", "{{ env_var('DBT_POSTGRES_HOST') }}"),
                 "user": get_field_value("user") or connection.get("user") or connection.get("username", "{{ env_var('DBT_POSTGRES_USER') }}"),
@@ -104,6 +105,15 @@ def generate_profiles_yml(environments: List[Dict[str, Any]]) -> str:
                 "dbname": get_field_value("database") or connection.get("database") or connection.get("dbname", "{{ env_var('DBT_POSTGRES_DATABASE') }}"),
                 "schema": get_field_value("schema") or connection.get("schema", "{{ env_var('DBT_POSTGRES_SCHEMA') }}"),
             })
+        elif connection_type == "redshift":
+            profile_config.update({
+                "host": get_field_value("host") or connection.get("host", "{{ env_var('DBT_REDSHIFT_HOST') }}"),
+                "user": get_field_value("user") or connection.get("user") or connection.get("username", "{{ env_var('DBT_REDSHIFT_USER') }}"),
+                "password": "{{ env_var('DBT_REDSHIFT_PASSWORD') }}",
+                "port": get_field_value("port") or connection.get("port", 5439),
+                "dbname": get_field_value("database") or connection.get("database") or connection.get("dbname", "{{ env_var('DBT_REDSHIFT_DATABASE') }}"),
+                "schema": get_field_value("schema") or connection.get("schema", "{{ env_var('DBT_REDSHIFT_SCHEMA') }}"),
+            })
         elif connection_type == "databricks":
             profile_config.update({
                 "host": get_field_value("host") or connection.get("host", "{{ env_var('DBT_DATABRICKS_HOST') }}"),
@@ -111,8 +121,72 @@ def generate_profiles_yml(environments: List[Dict[str, Any]]) -> str:
                 "token": "{{ env_var('DBT_DATABRICKS_TOKEN') }}",
                 "schema": get_field_value("schema") or connection.get("schema", "{{ env_var('DBT_DATABRICKS_SCHEMA') }}"),
             })
+        elif connection_type == "spark" or connection_type == "apache_spark":
+            # Apache Spark connection
+            profile_config.update({
+                "type": "spark",
+                "method": get_field_value("method") or connection.get("method", "http"),
+                "host": get_field_value("host") or connection.get("host", "{{ env_var('DBT_SPARK_HOST') }}"),
+                "port": get_field_value("port") or connection.get("port", 443),
+                "schema": get_field_value("schema") or connection.get("schema", "{{ env_var('DBT_SPARK_SCHEMA') }}"),
+                "token": "{{ env_var('DBT_SPARK_TOKEN') }}",
+            })
+        elif connection_type == "athena":
+            # Amazon Athena connection
+            profile_config.update({
+                "type": "athena",
+                "s3_staging_dir": get_field_value("s3_staging_dir") or connection.get("s3_staging_dir", "{{ env_var('DBT_ATHENA_S3_STAGING_DIR') }}"),
+                "region_name": get_field_value("region_name") or connection.get("region_name", "{{ env_var('DBT_ATHENA_REGION') }}"),
+                "schema": get_field_value("schema") or connection.get("schema", "{{ env_var('DBT_ATHENA_SCHEMA') }}"),
+                "database": get_field_value("database") or connection.get("database", "{{ env_var('DBT_ATHENA_DATABASE') }}"),
+            })
+        elif connection_type == "trino" or connection_type == "starburst":
+            # Trino/Starburst connection
+            profile_config.update({
+                "type": "trino",
+                "host": get_field_value("host") or connection.get("host", "{{ env_var('DBT_TRINO_HOST') }}"),
+                "port": get_field_value("port") or connection.get("port", 8080),
+                "user": get_field_value("user") or connection.get("user", "{{ env_var('DBT_TRINO_USER') }}"),
+                "password": "{{ env_var('DBT_TRINO_PASSWORD') }}",
+                "catalog": get_field_value("catalog") or connection.get("catalog", "{{ env_var('DBT_TRINO_CATALOG') }}"),
+                "schema": get_field_value("schema") or connection.get("schema", "{{ env_var('DBT_TRINO_SCHEMA') }}"),
+            })
+        elif connection_type == "synapse" or connection_type == "azure_synapse":
+            # Azure Synapse Analytics connection
+            profile_config.update({
+                "type": "sqlserver",  # Synapse uses SQL Server adapter
+                "driver": "ODBC Driver 17 for SQL Server",
+                "server": get_field_value("server") or connection.get("server") or connection.get("host", "{{ env_var('DBT_SYNAPSE_SERVER') }}"),
+                "port": get_field_value("port") or connection.get("port", 1433),
+                "database": get_field_value("database") or connection.get("database", "{{ env_var('DBT_SYNAPSE_DATABASE') }}"),
+                "schema": get_field_value("schema") or connection.get("schema", "{{ env_var('DBT_SYNAPSE_SCHEMA') }}"),
+                "user": get_field_value("user") or connection.get("user", "{{ env_var('DBT_SYNAPSE_USER') }}"),
+                "password": "{{ env_var('DBT_SYNAPSE_PASSWORD') }}",
+            })
+        elif connection_type == "fabric" or connection_type == "microsoft_fabric":
+            # Microsoft Fabric connection
+            profile_config.update({
+                "type": "sqlserver",  # Fabric uses SQL Server adapter
+                "driver": "ODBC Driver 17 for SQL Server",
+                "server": get_field_value("server") or connection.get("server") or connection.get("host", "{{ env_var('DBT_FABRIC_SERVER') }}"),
+                "port": get_field_value("port") or connection.get("port", 1433),
+                "database": get_field_value("database") or connection.get("database", "{{ env_var('DBT_FABRIC_DATABASE') }}"),
+                "schema": get_field_value("schema") or connection.get("schema", "{{ env_var('DBT_FABRIC_SCHEMA') }}"),
+                "user": get_field_value("user") or connection.get("user", "{{ env_var('DBT_FABRIC_USER') }}"),
+                "password": "{{ env_var('DBT_FABRIC_PASSWORD') }}",
+            })
+        elif connection_type == "teradata":
+            # Teradata connection
+            profile_config.update({
+                "type": "teradata",
+                "host": get_field_value("host") or connection.get("host", "{{ env_var('DBT_TERADATA_HOST') }}"),
+                "user": get_field_value("user") or connection.get("user", "{{ env_var('DBT_TERADATA_USER') }}"),
+                "password": "{{ env_var('DBT_TERADATA_PASSWORD') }}",
+                "database": get_field_value("database") or connection.get("database", "{{ env_var('DBT_TERADATA_DATABASE') }}"),
+                "schema": get_field_value("schema") or connection.get("schema", "{{ env_var('DBT_TERADATA_SCHEMA') }}"),
+            })
         else:
-            # Generic profile - use environment variables
+            # Generic profile - use environment variables (fallback for any other connection types)
             profile_config.update({
                 "host": get_field_value("host") or connection.get("host", "{{ env_var('DBT_HOST') }}"),
                 "user": get_field_value("user") or connection.get("user") or connection.get("username", "{{ env_var('DBT_USER') }}"),
