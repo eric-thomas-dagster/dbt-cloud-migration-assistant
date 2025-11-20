@@ -691,12 +691,29 @@ root_module = "{project_package}"
                     # Find the trigger job name
                     trigger_job = next((j for j in project_jobs if j.get("id") == trigger_job_id), None)
                     if trigger_job:
-                        trigger_job_name = self._sanitize_name(trigger_job.get("name", f"job_{trigger_job_id}"))
-                        # Ensure unique trigger job name (check if we've seen this job name before)
-                        existing_trigger_names = [self._sanitize_name(j.get("name", f"job_{j.get('id')}")) for j in project_jobs[:project_jobs.index(trigger_job)]]
-                        if trigger_job_name in existing_trigger_names:
-                            trigger_job_name = f"{trigger_job_name}_{trigger_job_id}"
-                        trigger_job_name_safe = f"{project_name}_{trigger_job_name}"
+                        # Find the trigger job's full name (with environment prefix) from all_job_defs
+                        # This ensures we reference the correct job name that was already created
+                        trigger_job_name_safe = None
+                        trigger_job_id_check = trigger_job.get("id")
+                        for j_def in all_job_defs:
+                            j_attrs = j_def.get("attributes", {})
+                            j_name = j_attrs.get("job_name", "")
+                            # The job_name in attributes should match the pattern: project_name_ENV__job_name
+                            # We need to find the job that corresponds to this trigger_job_id
+                            # Since we can't easily match by ID, we'll construct it using the same logic
+                            trigger_job_name_base = self._sanitize_name(trigger_job.get("name", f"job_{trigger_job_id_check}"))
+                            trigger_env_id = trigger_job.get("environment_id")
+                            trigger_env_prefix = ""
+                            if trigger_env_id:
+                                trigger_env = next((e for e in environments if e.get("id") == trigger_env_id), None)
+                                if trigger_env:
+                                    trigger_env_name = trigger_env.get("name", "").upper().strip()
+                                    trigger_env_prefix = self._sanitize_name(trigger_env_name)
+                                    if trigger_env_prefix:
+                                        trigger_env_prefix = f"{trigger_env_prefix}__"
+                            full_trigger_job_name = f"{trigger_env_prefix}{trigger_job_name_base}"
+                            trigger_job_name_safe = f"{project_name}_{full_trigger_job_name}"
+                            break
                         
                         # Map dbt Cloud status codes to Dagster run statuses
                         # dbt Cloud status codes: 1=Queued, 2=Started, 3=Running, 10=Success, 20=Error, 30=Cancelled
