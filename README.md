@@ -64,10 +64,11 @@ Replace `YOUR_PREFIX` with your account prefix (found in Account Settings).
 
 After running the migration:
 
-- ✅ Complete Dagster project with all your dbt projects, jobs, and schedules
+- ✅ Complete Dagster project with all your dbt projects, jobs, schedules, and sensors
 - ✅ Component-based YAML definitions (no Python code to maintain)
 - ✅ Deployment-aware configuration (works with Dagster Cloud)
 - ✅ DuckDB local development target (develop without production DB)
+- ✅ Job completion triggers automatically converted to Dagster sensors
 - ✅ Migration summary and validation scripts
 - ✅ Helper scripts to clone repositories and validate setup
 
@@ -84,18 +85,20 @@ After migration completes:
 
 - ✅ Automatically detects and installs required dbt adapters
 - ✅ Generates dbt profiles.yml with deployment-aware target selection
-- ✅ Uses Dagster 1.12+ CLI for all project scaffolding
+- ✅ Uses Dagster 1.12+ CLI (`create-dagster project`) for all project scaffolding
 - ✅ Component-based architecture (all YAML, no Python code)
 - ✅ Maps dbt Cloud jobs → Dagster jobs
 - ✅ Maps dbt Cloud schedules → Dagster schedules
+- ✅ Maps dbt Cloud job completion triggers → Dagster sensors
+- ✅ Supports all dbt Cloud connection types (Snowflake, BigQuery, Databricks, Spark, Athena, Trino, Synapse, Fabric, Teradata, AlloyDB, and more)
 - ✅ Preserves job configurations (threads, target, etc.)
 
 ## How It Works
 
 1. Connects to dbt Cloud API and fetches your configuration
-2. Uses `dg init` to scaffold Dagster project
+2. Uses `create-dagster project` to scaffold Dagster project (falls back to `dg init` if needed)
 3. Uses `dg scaffold defs` to create dbt components
-4. Generates component-based YAML for jobs and schedules
+4. Generates component-based YAML for jobs, schedules, and sensors
 5. Creates all necessary configuration files
 
 All using Dagster's official CLI - no custom code generation!
