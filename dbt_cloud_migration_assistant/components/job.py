@@ -14,6 +14,11 @@ class JobComponent(dg.Component, dg.Model, dg.Resolvable):
     description: Optional[str] = None
     tags: Optional[dict[str, str]] = None
     config: Optional[dict] = None
+    
+    def model_post_init(self, __context):
+        """Ensure all tag values are strings after model initialization."""
+        if self.tags:
+            self.tags = {k: str(v) for k, v in self.tags.items()}
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         """Build Dagster definitions from component parameters."""
