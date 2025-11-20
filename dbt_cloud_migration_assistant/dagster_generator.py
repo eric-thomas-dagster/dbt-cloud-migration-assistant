@@ -382,65 +382,24 @@ root_module = "{project_package}"
             # Only create definitions.py if it doesn't exist (create-dagster should have created it)
             definitions_file = package_dir / "definitions.py"
             if not definitions_file.exists():
-                # Load YAML components manually to ensure all jobs, schedules, and sensors are loaded
-                # load_from_defs_folder doesn't always discover custom component YAML files in subdirectories
+                # Use the standard Dagster pattern that loads YAML components from defs/ directory
+                # With the correct folder structure (each component in its own folder with defs.yaml),
+                # load_from_defs_folder will automatically discover all components
                 with open(definitions_file, "w") as f:
                     f.write('"""Dagster definitions loaded from YAML components."""\n\n')
                     f.write('from pathlib import Path\n')
-                    f.write('from dagster import Definitions, load_from_defs_folder\n')
-                    f.write('import yaml\n\n')
+                    f.write('from dagster import load_from_defs_folder\n\n')
                     f.write('# Import custom components to ensure they\'re registered\n')
+                    f.write('# This makes them discoverable by load_from_defs_folder\n')
                     f.write('from .components import JobComponent, ScheduleComponent, SensorComponent\n\n')
-                    f.write('# Load dbt components from defs/ directory (these are discovered automatically)\n')
-                    f.write('defs_base = load_from_defs_folder(project_root=Path(__file__).parent / "defs")\n\n')
-                    f.write('# Manually load custom component YAML files (jobs, schedules, sensors)\n')
-                    f.write('# These are in subdirectories and may not be auto-discovered\n')
-                    f.write('defs_dir = Path(__file__).parent / "defs"\n')
-                    f.write('all_jobs = list(defs_base.jobs)\n')
-                    f.write('all_schedules = list(defs_base.schedules)\n')
-                    f.write('all_sensors = list(defs_base.sensors)\n')
-                    f.write('all_assets = list(defs_base.assets)\n\n')
-                    f.write('# Load jobs from defs/jobs/\n')
-                    f.write('jobs_dir = defs_dir / "jobs"\n')
-                    f.write('if jobs_dir.exists():\n')
-                    f.write('    for job_file in jobs_dir.glob("*.yaml"):\n')
-                    f.write('        with open(job_file) as f:\n')
-                    f.write('            data = yaml.safe_load(f)\n')
-                    f.write('            component = JobComponent(**data["attributes"])\n')
-                    f.write('            # Create a minimal context for build_defs\n')
-                    f.write('            from dagster import ComponentLoadContext\n')
-                    f.write('            context = ComponentLoadContext(path=jobs_dir)\n')
-                    f.write('            job_defs = component.build_defs(context)\n')
-                    f.write('            all_jobs.extend(job_defs.jobs)\n\n')
-                    f.write('# Load schedules from defs/schedules/\n')
-                    f.write('schedules_dir = defs_dir / "schedules"\n')
-                    f.write('if schedules_dir.exists():\n')
-                    f.write('    for schedule_file in schedules_dir.glob("*.yaml"):\n')
-                    f.write('        with open(schedule_file) as f:\n')
-                    f.write('            data = yaml.safe_load(f)\n')
-                    f.write('            component = ScheduleComponent(**data["attributes"])\n')
-                    f.write('            context = ComponentLoadContext(path=schedules_dir)\n')
-                    f.write('            schedule_defs = component.build_defs(context)\n')
-                    f.write('            all_schedules.extend(schedule_defs.schedules)\n')
-                    f.write('            # Schedules may also create jobs\n')
-                    f.write('            all_jobs.extend(schedule_defs.jobs)\n\n')
-                    f.write('# Load sensors from defs/sensors/\n')
-                    f.write('sensors_dir = defs_dir / "sensors"\n')
-                    f.write('if sensors_dir.exists():\n')
-                    f.write('    for sensor_file in sensors_dir.glob("*.yaml"):\n')
-                    f.write('        with open(sensor_file) as f:\n')
-                    f.write('            data = yaml.safe_load(f)\n')
-                    f.write('            component = SensorComponent(**data["attributes"])\n')
-                    f.write('            context = ComponentLoadContext(path=sensors_dir)\n')
-                    f.write('            sensor_defs = component.build_defs(context)\n')
-                    f.write('            all_sensors.extend(sensor_defs.sensors)\n\n')
-                    f.write('# Combine all definitions\n')
-                    f.write('defs = Definitions(\n')
-                    f.write('    assets=all_assets,\n')
-                    f.write('    jobs=all_jobs,\n')
-                    f.write('    schedules=all_schedules,\n')
-                    f.write('    sensors=all_sensors,\n')
-                    f.write(')\n')
+                    f.write('# Load all definitions from YAML files in the defs/ directory\n')
+                    f.write('# With the standard folder structure (each component in its own folder with defs.yaml),\n')
+                    f.write('# load_from_defs_folder will automatically discover all components including:\n')
+                    f.write('# - dbt components from defs/<project_name>/defs.yaml\n')
+                    f.write('# - jobs from defs/jobs/<job_name>/defs.yaml\n')
+                    f.write('# - schedules from defs/schedules/<schedule_name>/defs.yaml\n')
+                    f.write('# - sensors from defs/sensors/<sensor_name>/defs.yaml\n')
+                    f.write('defs = load_from_defs_folder(project_root=Path(__file__).parent / "defs")\n')
 
     def _register_custom_components(self):
         """Register custom components using Dagster CLI and copy component files"""
@@ -701,45 +660,51 @@ root_module = "{project_package}"
                             all_sensor_defs.append(sensor_def)
 
         # Write jobs as component-based YAML
-        # Each component should be in its own file or as a single object
+        # Each component should be in its own folder with defs.yaml (standard Dagster structure)
         project_package = self._get_project_package_name()
         if all_job_defs:
             # Create directory structure manually (more reliable than scaffold)
             jobs_dir = self.output_dir / project_package / "defs" / "jobs"
             jobs_dir.mkdir(parents=True, exist_ok=True)
             
-            # Write each job to a separate file (Dagster expects single objects, not lists)
+            # Write each job to its own folder with defs.yaml (standard Dagster component structure)
             for i, job_def in enumerate(all_job_defs):
                 job_name = job_def.get("attributes", {}).get("job_name", f"job_{i}")
-                job_file = jobs_dir / f"{job_name}.yaml"
+                job_folder = jobs_dir / job_name
+                job_folder.mkdir(parents=True, exist_ok=True)
+                job_file = job_folder / "defs.yaml"
                 with open(job_file, "w") as f:
                     yaml.dump(job_def, f, default_flow_style=False, sort_keys=False)
 
         # Write schedules as component-based YAML
-        # Each component should be in its own file or as a single object
+        # Each component should be in its own folder with defs.yaml (standard Dagster structure)
         if all_schedule_defs:
             # Create directory structure manually (more reliable than scaffold)
             schedules_dir = self.output_dir / project_package / "defs" / "schedules"
             schedules_dir.mkdir(parents=True, exist_ok=True)
             
-            # Write each schedule to a separate file (Dagster expects single objects, not lists)
+            # Write each schedule to its own folder with defs.yaml (standard Dagster component structure)
             for i, schedule_def in enumerate(all_schedule_defs):
                 schedule_name = schedule_def.get("attributes", {}).get("schedule_name", f"schedule_{i}")
-                schedule_file = schedules_dir / f"{schedule_name}.yaml"
+                schedule_folder = schedules_dir / schedule_name
+                schedule_folder.mkdir(parents=True, exist_ok=True)
+                schedule_file = schedule_folder / "defs.yaml"
                 with open(schedule_file, "w") as f:
                     yaml.dump(schedule_def, f, default_flow_style=False, sort_keys=False)
         
         # Write sensors as component-based YAML
-        # Each component should be in its own file or as a single object
+        # Each component should be in its own folder with defs.yaml (standard Dagster structure)
         if all_sensor_defs:
             # Create directory structure manually (more reliable than scaffold)
             sensors_dir = self.output_dir / project_package / "defs" / "sensors"
             sensors_dir.mkdir(parents=True, exist_ok=True)
             
-            # Write each sensor to a separate file (Dagster expects single objects, not lists)
+            # Write each sensor to its own folder with defs.yaml (standard Dagster component structure)
             for i, sensor_def in enumerate(all_sensor_defs):
                 sensor_name = sensor_def.get("attributes", {}).get("sensor_name", f"sensor_{i}")
-                sensor_file = sensors_dir / f"{sensor_name}.yaml"
+                sensor_folder = sensors_dir / sensor_name
+                sensor_folder.mkdir(parents=True, exist_ok=True)
+                sensor_file = sensor_folder / "defs.yaml"
                 with open(sensor_file, "w") as f:
                     yaml.dump(sensor_def, f, default_flow_style=False, sort_keys=False)
 
