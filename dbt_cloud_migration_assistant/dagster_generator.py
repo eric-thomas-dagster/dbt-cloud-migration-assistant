@@ -530,8 +530,10 @@ root_module = "{project_package}"
                 all_job_defs.append(job_def)
 
                 # Create schedule component definition if schedule exists
+                # Check if job is scheduled (triggers.schedule = True)
+                triggers = job.get("triggers", {})
                 schedule = job.get("schedule")
-                if schedule:
+                if schedule and triggers.get("schedule", False):
                     cron = schedule.get("cron")
                     if cron:
                         schedule_def = {
@@ -545,6 +547,27 @@ root_module = "{project_package}"
                             },
                         }
                         all_schedule_defs.append(schedule_def)
+                
+                # Handle job completion triggers (job runs after another job completes)
+                # Note: Dagster doesn't have direct job completion triggers, but we can:
+                # 1. Add a comment/note in the job description
+                # 2. Create a sensor (future enhancement)
+                # For now, we'll document it in the job description
+                completion_trigger = job.get("job_completion_trigger_condition")
+                if completion_trigger:
+                    trigger_job_id = completion_trigger.get("condition", {}).get("job_id")
+                    trigger_statuses = completion_trigger.get("condition", {}).get("statuses", [])
+                    # Find the trigger job name
+                    trigger_job = next((j for j in project_jobs if j.get("id") == trigger_job_id), None)
+                    if trigger_job:
+                        trigger_job_name = self._sanitize_name(trigger_job.get("name", f"job_{trigger_job_id}"))
+                        trigger_job_name_safe = f"{project_name}_{trigger_job_name}"
+                        # Update job description to note the dependency
+                        status_text = "success" if 10 in trigger_statuses else "completion"
+                        job_attributes["description"] = (
+                            f"{job_attributes.get('description', '')} "
+                            f"[Triggered by: {trigger_job_name_safe} on {status_text}]"
+                        ).strip()
 
         # Write jobs as component-based YAML
         # Use dg scaffold defs to create directory structure, then populate YAML
@@ -577,23 +600,9 @@ root_module = "{project_package}"
 
         # Write schedules as component-based YAML
         if all_schedule_defs:
+            # Create directory structure manually (more reliable than scaffold)
             schedules_dir = self.output_dir / project_package / "defs" / "schedules"
-            
-            # Try to use dg scaffold defs to create the structure
-            try:
-                project_name = self._get_project_package_name()
-                component_type = f"{project_name}.components.schedule.ScheduleComponent"
-                
-                # Scaffold the first schedule definition to create directory structure
-                subprocess.run(
-                    ["dg", "scaffold", "defs", component_type, "schedules"],
-                    check=True,
-                    cwd=self.output_dir,
-                    capture_output=True,
-                )
-            except (subprocess.CalledProcessError, Exception):
-                # If scaffold fails, create directory manually
-                schedules_dir.mkdir(parents=True, exist_ok=True)
+            schedules_dir.mkdir(parents=True, exist_ok=True)
             
             # Write all schedule definitions to defs.yaml
             with open(schedules_dir / "defs.yaml", "w") as f:
