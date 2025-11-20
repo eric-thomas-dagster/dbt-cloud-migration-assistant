@@ -178,6 +178,21 @@ def main(api_key: str, account_id: int, output_dir: str, api_base_url: Optional[
             click.echo("  You can run './clone_dbt_projects.sh' manually later", err=True)
         
         click.echo("")
+        click.echo("📦 Generating dbt manifests...")
+        try:
+            for project in projects:
+                project_id = project.get("id")
+                if project_id not in project_repos:
+                    continue
+                project_name = project.get("name", f"project_{project_id}")
+                click.echo(f"  Generating manifest for {project_name}...")
+            generator.generate_dbt_manifests(projects, project_repos)
+            click.echo("✓ All dbt manifests generated successfully")
+        except Exception as e:
+            click.echo(f"⚠ Failed to generate dbt manifests: {e}", err=True)
+            click.echo("  You can run 'dbt parse' in each dbt project directory manually", err=True)
+        
+        click.echo("")
         click.echo("📋 Copying profiles.yml...")
         try:
             generator.copy_profiles_yml()
