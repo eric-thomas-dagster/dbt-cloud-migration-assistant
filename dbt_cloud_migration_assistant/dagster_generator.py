@@ -577,42 +577,10 @@ root_module = "{project_package}"
                 if job_env_id:
                     env = next((e for e in environments if e.get("id") == job_env_id), None)
                     if env:
-                        # Use deployment type if available, otherwise fall back to environment name
-                        # Check multiple possible field names for deployment type
-                        # The "Set deployment type" field in UI shows: "General", "STG Staging", "PROD Production"
-                        deployment_type = (
-                            env.get("deployment_type") 
-                            or env.get("deployment_environment_type")
-                            or env.get("deployment_environment_type_name")
-                            or env.get("type")  # This might be "deployment" for deployment environments
-                            or env.get("environment_type")
-                            or env.get("deployment", {}).get("type") if isinstance(env.get("deployment"), dict) else None
-                            or env.get("deployment", {}).get("environment_type") if isinstance(env.get("deployment"), dict) else None
-                            or env.get("deployment", {}).get("deployment_type") if isinstance(env.get("deployment"), dict) else None
-                            or env.get("settings", {}).get("deployment_type") if isinstance(env.get("settings"), dict) else None
-                        )
-                        if deployment_type:
-                            # Deployment type might be "production", "staging", "general", "PROD Production", "STG Staging", etc.
-                            # Extract the prefix (PROD, STG, or General)
-                            deployment_type_str = str(deployment_type).strip()
-                            
-                            # Handle formats like "PROD Production", "STG Staging", "General"
-                            if "PROD" in deployment_type_str.upper() or "PRODUCTION" in deployment_type_str.upper():
-                                deployment_prefix = "PROD"
-                            elif "STG" in deployment_type_str.upper() or "STAGING" in deployment_type_str.upper():
-                                deployment_prefix = "STG"
-                            elif "DEV" in deployment_type_str.upper() or "DEVELOPMENT" in deployment_type_str.upper():
-                                deployment_prefix = "DEV"
-                            elif "GENERAL" in deployment_type_str.upper():
-                                deployment_prefix = "GENERAL"
-                            else:
-                                # Fallback: use first word or uppercase the whole thing
-                                words = deployment_type_str.upper().split()
-                                deployment_prefix = words[0] if words else deployment_type_str.upper()
-                            
-                            env_prefix = self._sanitize_name(deployment_prefix)
-                            if env_prefix:
-                                env_prefix = f"{env_prefix}__"
+                        # Try to extract deployment type prefix
+                        deployment_prefix = self._extract_deployment_type_prefix(env)
+                        if deployment_prefix:
+                            env_prefix = f"{deployment_prefix}__"
                         else:
                             # Fallback to environment name if deployment type not available
                             env_name = env.get("name", "").upper().strip()
@@ -631,35 +599,10 @@ root_module = "{project_package}"
                     if existing_env_id:
                         existing_env = next((e for e in environments if e.get("id") == existing_env_id), None)
                         if existing_env:
-                            # Use deployment type if available (check multiple possible field names)
-                            existing_deployment_type = (
-                                existing_env.get("deployment_type") 
-                                or existing_env.get("deployment_environment_type")
-                                or existing_env.get("deployment_environment_type_name")
-                                or existing_env.get("type")
-                                or existing_env.get("environment_type")
-                                or existing_env.get("deployment", {}).get("type") if isinstance(existing_env.get("deployment"), dict) else None
-                                or existing_env.get("deployment", {}).get("environment_type") if isinstance(existing_env.get("deployment"), dict) else None
-                                or existing_env.get("deployment", {}).get("deployment_type") if isinstance(existing_env.get("deployment"), dict) else None
-                                or existing_env.get("settings", {}).get("deployment_type") if isinstance(existing_env.get("settings"), dict) else None
-                            )
-                            if existing_deployment_type:
-                                # Extract prefix (PROD, STG, DEV, GENERAL)
-                                existing_deployment_type_str = str(existing_deployment_type).strip()
-                                if "PROD" in existing_deployment_type_str.upper() or "PRODUCTION" in existing_deployment_type_str.upper():
-                                    existing_deployment_prefix = "PROD"
-                                elif "STG" in existing_deployment_type_str.upper() or "STAGING" in existing_deployment_type_str.upper():
-                                    existing_deployment_prefix = "STG"
-                                elif "DEV" in existing_deployment_type_str.upper() or "DEVELOPMENT" in existing_deployment_type_str.upper():
-                                    existing_deployment_prefix = "DEV"
-                                elif "GENERAL" in existing_deployment_type_str.upper():
-                                    existing_deployment_prefix = "GENERAL"
-                                else:
-                                    words = existing_deployment_type_str.upper().split()
-                                    existing_deployment_prefix = words[0] if words else existing_deployment_type_str.upper()
-                                existing_env_prefix = self._sanitize_name(existing_deployment_prefix)
-                                if existing_env_prefix:
-                                    existing_env_prefix = f"{existing_env_prefix}__"
+                            # Try to extract deployment type prefix
+                            existing_deployment_prefix = self._extract_deployment_type_prefix(existing_env)
+                            if existing_deployment_prefix:
+                                existing_env_prefix = f"{existing_deployment_prefix}__"
                             else:
                                 # Fallback to environment name
                                 existing_env_name = existing_env.get("name", "").upper().strip()
@@ -774,35 +717,10 @@ root_module = "{project_package}"
                             if trigger_env_id:
                                 trigger_env = next((e for e in environments if e.get("id") == trigger_env_id), None)
                                 if trigger_env:
-                                    # Use deployment type if available (check multiple possible field names)
-                                    trigger_deployment_type = (
-                                        trigger_env.get("deployment_type") 
-                                        or trigger_env.get("deployment_environment_type")
-                                        or trigger_env.get("deployment_environment_type_name")
-                                        or trigger_env.get("type")
-                                        or trigger_env.get("environment_type")
-                                        or trigger_env.get("deployment", {}).get("type") if isinstance(trigger_env.get("deployment"), dict) else None
-                                        or trigger_env.get("deployment", {}).get("environment_type") if isinstance(trigger_env.get("deployment"), dict) else None
-                                        or trigger_env.get("deployment", {}).get("deployment_type") if isinstance(trigger_env.get("deployment"), dict) else None
-                                        or trigger_env.get("settings", {}).get("deployment_type") if isinstance(trigger_env.get("settings"), dict) else None
-                                    )
-                                    if trigger_deployment_type:
-                                        # Extract prefix (PROD, STG, DEV, GENERAL)
-                                        trigger_deployment_type_str = str(trigger_deployment_type).strip()
-                                        if "PROD" in trigger_deployment_type_str.upper() or "PRODUCTION" in trigger_deployment_type_str.upper():
-                                            trigger_deployment_prefix = "PROD"
-                                        elif "STG" in trigger_deployment_type_str.upper() or "STAGING" in trigger_deployment_type_str.upper():
-                                            trigger_deployment_prefix = "STG"
-                                        elif "DEV" in trigger_deployment_type_str.upper() or "DEVELOPMENT" in trigger_deployment_type_str.upper():
-                                            trigger_deployment_prefix = "DEV"
-                                        elif "GENERAL" in trigger_deployment_type_str.upper():
-                                            trigger_deployment_prefix = "GENERAL"
-                                        else:
-                                            words = trigger_deployment_type_str.upper().split()
-                                            trigger_deployment_prefix = words[0] if words else trigger_deployment_type_str.upper()
-                                        trigger_env_prefix = self._sanitize_name(trigger_deployment_prefix)
-                                        if trigger_env_prefix:
-                                            trigger_env_prefix = f"{trigger_env_prefix}__"
+                                    # Try to extract deployment type prefix
+                                    trigger_deployment_prefix = self._extract_deployment_type_prefix(trigger_env)
+                                    if trigger_deployment_prefix:
+                                        trigger_env_prefix = f"{trigger_deployment_prefix}__"
                                     else:
                                         # Fallback to environment name
                                         trigger_env_name = trigger_env.get("name", "").upper().strip()
@@ -1666,6 +1584,52 @@ Jobs and schedules are defined using **custom components** in YAML:
         
         # If no specific selection found or tag/path selection used, default to all assets
         return [f"{component_name}.*"]
+    
+    def _extract_deployment_type_prefix(self, env: Dict[str, Any]) -> str:
+        """
+        Extract deployment type prefix (PROD, STG, GENERAL, etc.) from environment object.
+        
+        The "Set deployment type" field in dbt Cloud UI shows:
+        - "General"
+        - "STG Staging"
+        - "PROD Production"
+        
+        Returns the prefix (e.g., "PROD", "STG", "GENERAL") or empty string if not found.
+        """
+        # Check multiple possible field names for deployment type
+        deployment_type = (
+            env.get("deployment_type") 
+            or env.get("deployment_environment_type")
+            or env.get("deployment_environment_type_name")
+            or env.get("type")  # This might be "deployment" for deployment environments
+            or env.get("environment_type")
+            or env.get("deployment", {}).get("type") if isinstance(env.get("deployment"), dict) else None
+            or env.get("deployment", {}).get("environment_type") if isinstance(env.get("deployment"), dict) else None
+            or env.get("deployment", {}).get("deployment_type") if isinstance(env.get("deployment"), dict) else None
+            or env.get("settings", {}).get("deployment_type") if isinstance(env.get("settings"), dict) else None
+        )
+        
+        if deployment_type:
+            # Handle different formats:
+            # - String values: "production", "staging", "general", "PROD Production", "STG Staging"
+            # - Numeric codes: might need mapping
+            deployment_type_str = str(deployment_type).strip()
+            
+            # Extract the prefix (PROD, STG, DEV, GENERAL)
+            if "PROD" in deployment_type_str.upper() or "PRODUCTION" in deployment_type_str.upper():
+                return "PROD"
+            elif "STG" in deployment_type_str.upper() or "STAGING" in deployment_type_str.upper():
+                return "STG"
+            elif "DEV" in deployment_type_str.upper() or "DEVELOPMENT" in deployment_type_str.upper():
+                return "DEV"
+            elif "GENERAL" in deployment_type_str.upper():
+                return "GENERAL"
+            else:
+                # Fallback: use first word or uppercase the whole thing
+                words = deployment_type_str.upper().split()
+                return words[0] if words else deployment_type_str.upper()
+        
+        return ""
     
     def _sanitize_name(self, name: str) -> str:
         """Sanitize name for use in file paths and identifiers"""
