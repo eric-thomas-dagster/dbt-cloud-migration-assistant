@@ -590,10 +590,14 @@ root_module = "{project_package}"
                 execute_steps = job.get("execute_steps", [])
                 job_description = job.get("description") or f"Job migrated from dbt Cloud: {job.get('name', f'job_{job_id}')}"
                 
+                # Parse dbt selection syntax from execute_steps
+                # Examples: "dbt build --select model_a model_b", "dbt run --select +model_a", "dbt build"
+                asset_selection = self._parse_dbt_selection(execute_steps, component_name)
+                
                 # Build job attributes
                 job_attributes = {
                     "job_name": job_name_safe,
-                    "asset_selection": [f"{component_name}.*"],  # Select all assets from the dbt component
+                    "asset_selection": asset_selection,
                     "description": job_description,
                 }
                 
@@ -1435,6 +1439,85 @@ Jobs and schedules are defined using **custom components** in YAML:
         with open(self.output_dir / "README.md", "w") as f:
             f.write(content)
 
+    def _parse_dbt_selection(self, execute_steps: List[str], component_name: str) -> List[str]:
+        """
+        Parse dbt selection syntax from execute_steps and convert to Dagster asset selection.
+        
+        Examples:
+        - ["dbt build --select model_a model_b"] → ["model_a", "model_b"]
+        - ["dbt run --select +model_a"] → ["model_a"] (with dependencies handled by Dagster)
+        - ["dbt build"] → [f"{component_name}.*"] (all assets)
+        - ["dbt build --select tag:my_tag"] → [f"{component_name}.*"] (fallback to all, tag selection not directly mappable)
+        
+        Args:
+            execute_steps: List of dbt command strings (e.g., ["dbt build --select model_a"])
+            component_name: Name of the dbt component (for fallback to all assets)
+            
+        Returns:
+            List of asset selection strings for Dagster (e.g., ["model_a", "model_b"] or ["component_name.*"])
+        """
+        import re
+        
+        selected_models = []
+        
+        for step in execute_steps:
+            if not step or not isinstance(step, str):
+                continue
+            
+            # Look for --select or --models flags
+            # Pattern: --select model1 model2 model3 or --models model1 model2
+            # Also handle: --select +model1, --select model1+, --select tag:my_tag, etc.
+            select_pattern = r'--(?:select|models)\s+([^\s]+(?:\s+[^\s]+)*)'
+            match = re.search(select_pattern, step)
+            
+            if match:
+                # Extract the selection arguments
+                selection_args = match.group(1).strip()
+                
+                # Split by spaces, but handle quoted strings
+                # Simple approach: split by spaces and filter out flags
+                parts = selection_args.split()
+                
+                for part in parts:
+                    part = part.strip()
+                    if not part:
+                        continue
+                    
+                    # Handle dbt selection syntax:
+                    # - +model_a (downstream dependencies) → just model_a (Dagster handles dependencies)
+                    # - model_a+ (upstream dependencies) → just model_a
+                    # - model_a (simple model) → model_a
+                    # - tag:my_tag (tag selection) → skip (not directly mappable, use all)
+                    # - path:models/staging (path selection) → skip (not directly mappable, use all)
+                    # - config.materialized:incremental → skip (not directly mappable)
+                    
+                    if part.startswith('tag:') or part.startswith('path:') or part.startswith('config.'):
+                        # Tag/path/config selections are not directly mappable to asset keys
+                        # Fall back to selecting all assets
+                        continue
+                    
+                    # Remove dependency operators (+ prefix/suffix)
+                    model_name = part.lstrip('+').rstrip('+')
+                    
+                    # Remove any other dbt-specific operators (e.g., @, &)
+                    # For now, keep it simple and just extract the model name
+                    if model_name and not model_name.startswith(('tag:', 'path:', 'config.', '@', '&')):
+                        selected_models.append(model_name)
+        
+        # If we found specific model selections, use them
+        if selected_models:
+            # Remove duplicates while preserving order
+            seen = set()
+            unique_models = []
+            for model in selected_models:
+                if model not in seen:
+                    seen.add(model)
+                    unique_models.append(model)
+            return unique_models
+        
+        # If no specific selection found, default to all assets
+        return [f"{component_name}.*"]
+    
     def _sanitize_name(self, name: str) -> str:
         """Sanitize name for use in file paths and identifiers"""
         return name.replace("-", "_").replace(" ", "_").replace(".", "_").lower()
