@@ -71,10 +71,11 @@ class SensorComponent(dg.Component, dg.Model, dg.Resolvable):
         dagster_status = status_map.get(self.run_status, dg.DagsterRunStatus.SUCCESS)
         
         # Build sensor parameters
+        # run_status_sensor uses job_name (not request_job_name) for the job to trigger
         sensor_params = {
             "name": self.sensor_name,
             "run_status": dagster_status,
-            "request_job_name": self.job_name,  # The job to trigger
+            "job_name": self.job_name,  # The job to trigger
             "description": self.description or f"Monitor {self.monitored_job_name} for {self.run_status}",
             "minimum_interval_seconds": self.minimum_interval_seconds,
             "default_status": (
