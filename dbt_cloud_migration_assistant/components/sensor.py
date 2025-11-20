@@ -71,8 +71,7 @@ class SensorComponent(dg.Component, dg.Model, dg.Resolvable):
         dagster_status = status_map.get(self.run_status, dg.DagsterRunStatus.SUCCESS)
         
         # Build sensor parameters
-        # run_status_sensor uses monitored_jobs (sequence) and request_job (singular JobDefinition)
-        # We need to resolve job names to JobDefinitions at runtime
+        # run_status_sensor uses job_selection (sequence of JobSelector or JobDefinition)
         sensor_params = {
             "name": self.sensor_name,
             "run_status": dagster_status,
@@ -85,11 +84,11 @@ class SensorComponent(dg.Component, dg.Model, dg.Resolvable):
             ),
         }
         
-        # Add monitored_jobs if provided (filters to only monitor specific job)
-        # We'll use job_selection with a string job name since we can't resolve JobDefinition here
+        # Add job_selection if provided (filters to only monitor specific job)
+        # Use JobSelector to specify which job to monitor
         if self.monitored_job_name:
-            # Use job_selection to filter by job name
-            sensor_params["job_selection"] = [self.monitored_job_name]
+            from dagster import JobSelector
+            sensor_params["job_selection"] = [JobSelector(job_name=self.monitored_job_name)]
         
         @dg.run_status_sensor(**sensor_params)
         def status_sensor(context: dg.RunStatusSensorContext):
