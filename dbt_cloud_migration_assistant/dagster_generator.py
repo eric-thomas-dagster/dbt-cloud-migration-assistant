@@ -71,7 +71,7 @@ class DagsterProjectGenerator:
         self._register_custom_components()
         
         # Generate jobs and schedules as component-based YAML definitions
-        self._generate_jobs_and_schedules(projects, jobs, project_repos)
+        self._generate_jobs_and_schedules(projects, jobs, environments, project_repos)
 
         # Update pyproject.toml with dependencies including adapters and dagster-cloud
         self._update_pyproject_toml(required_adapters)
@@ -538,6 +538,7 @@ root_module = "{project_package}"
         self,
         projects: List[Dict[str, Any]],
         jobs: List[Dict[str, Any]],
+        environments: List[Dict[str, Any]],
         project_repos: Dict[int, str],
     ):
         """Generate jobs and schedules as component-based YAML definitions"""
@@ -1260,6 +1261,39 @@ root_module = "{project_package}"
         content += "   - If deployment is 'staging', uses `staging` target from profiles.yml\n\n"
         content += "This matches the pattern used in the [Dagster demo project](https://github.com/dagster-io/hooli-data-eng-pipelines/blob/master/hooli-data-eng/src/hooli_data_eng/defs/dbt/resources.py).\n\n"
         content += "**No additional configuration needed!** The dbt components are already set up to use the right target based on your deployment.\n\n"
+        
+        # Add note about environment-specific jobs
+        content += "### ⚠️ Environment-Specific Jobs (STG vs PROD)\n\n"
+        content += "**Important**: In dbt Cloud, you may have separate jobs for different environments (e.g., STG and PROD).\n\n"
+        content += "**Dagster Pattern**: In Dagster, the recommended pattern is to have **one job definition** that works across all deployments, using deployment-aware target selection:\n\n"
+        content += "```yaml\n"
+        content += "# Single job that works in all deployments\n"
+        content += "type: dagster_dbt_migration.components.job.JobComponent\n"
+        content += "attributes:\n"
+        content += "  job_name: analytics_job\n"
+        content += "  asset_selection:\n"
+        content += "    - analytics.*\n"
+        content += "  tags:\n"
+        content += "    # Target is selected automatically based on deployment\n"
+        content += "    dbt_target: \"{{ env_var('DAGSTER_CLOUD_DEPLOYMENT_NAME', 'local') }}\"\n"
+        content += "```\n\n"
+        content += "**Current Migration**: The migration tool preserves your dbt Cloud structure by creating separate jobs for each environment:\n\n"
+        content += "- Jobs tagged with `dbt_target: stg` use the STG environment target\n"
+        content += "- Jobs tagged with `dbt_target: prod` use the PROD environment target\n"
+        content += "- This preserves your existing workflow but is different from typical Dagster patterns\n\n"
+        content += "**Recommendation**: After migration, consider consolidating jobs that do the same thing but target different environments:\n\n"
+        content += "1. **Option A - Keep Separate Jobs** (Current): Preserves dbt Cloud structure, easier migration\n"
+        content += "   - Pros: Matches your dbt Cloud setup exactly\n"
+        content += "   - Cons: More jobs to manage, not typical Dagster pattern\n\n"
+        content += "2. **Option B - Consolidate Jobs** (Recommended for Dagster): One job per logical workflow\n"
+        content += "   - Pros: Cleaner, follows Dagster best practices, easier to maintain\n"
+        content += "   - Cons: Requires manual consolidation after migration\n"
+        content += "   - How: Merge jobs with same name but different environments, use deployment-aware targets\n\n"
+        content += "**To Consolidate**: After reviewing the migration, you can manually merge jobs by:\n"
+        content += "1. Keeping one job definition (e.g., `analytics_new_job`)\n"
+        content += "2. Removing environment-specific duplicates\n"
+        content += "3. Updating the dbt component to use deployment-aware target selection\n"
+        content += "4. The dbt component will automatically use the right target based on `DAGSTER_CLOUD_DEPLOYMENT_NAME`\n\n"
         
         # Next steps
         content += "## 📋 Next Steps\n\n"
