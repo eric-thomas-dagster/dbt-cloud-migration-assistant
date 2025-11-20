@@ -445,7 +445,10 @@ root_module = "{project_package}"
                     f.write('# - jobs from defs/jobs/<job_name>/defs.yaml\n')
                     f.write('# - schedules from defs/schedules/<schedule_name>/defs.yaml\n')
                     f.write('# - sensors from defs/sensors/<sensor_name>/defs.yaml\n')
-                    f.write('defs = load_from_defs_folder(project_root=Path(__file__).parent / "defs")\n')
+                    f.write('# \n')
+                    f.write('# Note: load_from_defs_folder expects the project_root to be the directory containing the defs/ folder\n')
+                    f.write('# So we pass the parent directory (dagster_dbt_migration) as the project root\n')
+                    f.write('defs = load_from_defs_folder(project_root=Path(__file__).parent)\n')
 
     def _register_custom_components(self):
         """Register custom components using Dagster CLI and copy component files"""
