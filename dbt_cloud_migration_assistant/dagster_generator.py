@@ -571,21 +571,30 @@ root_module = "{project_package}"
                 job_id = job.get("id")
                 job_name = self._sanitize_name(job.get("name", f"job_{job_id}"))
                 
-                # Get environment name for prefixing
+                # Get deployment type for prefixing (e.g., PROD, STG, DEV)
                 job_env_id = job.get("environment_id")
                 env_prefix = ""
                 if job_env_id:
                     env = next((e for e in environments if e.get("id") == job_env_id), None)
                     if env:
-                        env_name = env.get("name", "").upper().strip()
-                        # Use environment name as prefix (e.g., "PROD", "STG", "DEV")
-                        # Sanitize to ensure it's valid for use in job names
-                        env_prefix = self._sanitize_name(env_name)
-                        if env_prefix:
-                            env_prefix = f"{env_prefix}__"
+                        # Use deployment type if available, otherwise fall back to environment name
+                        deployment_type = env.get("type") or env.get("deployment_type") or env.get("environment_type")
+                        if deployment_type:
+                            # Deployment type is usually a string like "production", "staging", "development"
+                            # Convert to uppercase and use as prefix
+                            deployment_type_upper = str(deployment_type).upper().strip()
+                            env_prefix = self._sanitize_name(deployment_type_upper)
+                            if env_prefix:
+                                env_prefix = f"{env_prefix}__"
+                        else:
+                            # Fallback to environment name if deployment type not available
+                            env_name = env.get("name", "").upper().strip()
+                            env_prefix = self._sanitize_name(env_name)
+                            if env_prefix:
+                                env_prefix = f"{env_prefix}__"
                 
                 # Ensure unique job names by including job ID if names are duplicated
-                # Check if we've already seen this job name (with same environment)
+                # Check if we've already seen this job name (with same deployment type)
                 existing_job_names = []
                 for j in project_jobs[:project_jobs.index(job)]:
                     existing_job_id = j.get("id")
@@ -595,10 +604,19 @@ root_module = "{project_package}"
                     if existing_env_id:
                         existing_env = next((e for e in environments if e.get("id") == existing_env_id), None)
                         if existing_env:
-                            existing_env_name = existing_env.get("name", "").upper().strip()
-                            existing_env_prefix = self._sanitize_name(existing_env_name)
-                            if existing_env_prefix:
-                                existing_env_prefix = f"{existing_env_prefix}__"
+                            # Use deployment type if available
+                            existing_deployment_type = existing_env.get("type") or existing_env.get("deployment_type") or existing_env.get("environment_type")
+                            if existing_deployment_type:
+                                existing_deployment_type_upper = str(existing_deployment_type).upper().strip()
+                                existing_env_prefix = self._sanitize_name(existing_deployment_type_upper)
+                                if existing_env_prefix:
+                                    existing_env_prefix = f"{existing_env_prefix}__"
+                            else:
+                                # Fallback to environment name
+                                existing_env_name = existing_env.get("name", "").upper().strip()
+                                existing_env_prefix = self._sanitize_name(existing_env_name)
+                                if existing_env_prefix:
+                                    existing_env_prefix = f"{existing_env_prefix}__"
                     existing_job_names.append(f"{existing_env_prefix}{existing_job_name}")
                 
                 full_job_name = f"{env_prefix}{job_name}"
@@ -691,14 +709,14 @@ root_module = "{project_package}"
                     # Find the trigger job name
                     trigger_job = next((j for j in project_jobs if j.get("id") == trigger_job_id), None)
                     if trigger_job:
-                        # Find the trigger job's full name (with environment prefix) from all_job_defs
+                        # Find the trigger job's full name (with deployment type prefix) from all_job_defs
                         # This ensures we reference the correct job name that was already created
                         trigger_job_name_safe = None
                         trigger_job_id_check = trigger_job.get("id")
                         for j_def in all_job_defs:
                             j_attrs = j_def.get("attributes", {})
                             j_name = j_attrs.get("job_name", "")
-                            # The job_name in attributes should match the pattern: project_name_ENV__job_name
+                            # The job_name in attributes should match the pattern: project_name_DEPLOYMENT_TYPE__job_name
                             # We need to find the job that corresponds to this trigger_job_id
                             # Since we can't easily match by ID, we'll construct it using the same logic
                             trigger_job_name_base = self._sanitize_name(trigger_job.get("name", f"job_{trigger_job_id_check}"))
@@ -707,10 +725,19 @@ root_module = "{project_package}"
                             if trigger_env_id:
                                 trigger_env = next((e for e in environments if e.get("id") == trigger_env_id), None)
                                 if trigger_env:
-                                    trigger_env_name = trigger_env.get("name", "").upper().strip()
-                                    trigger_env_prefix = self._sanitize_name(trigger_env_name)
-                                    if trigger_env_prefix:
-                                        trigger_env_prefix = f"{trigger_env_prefix}__"
+                                    # Use deployment type if available
+                                    trigger_deployment_type = trigger_env.get("type") or trigger_env.get("deployment_type") or trigger_env.get("environment_type")
+                                    if trigger_deployment_type:
+                                        trigger_deployment_type_upper = str(trigger_deployment_type).upper().strip()
+                                        trigger_env_prefix = self._sanitize_name(trigger_deployment_type_upper)
+                                        if trigger_env_prefix:
+                                            trigger_env_prefix = f"{trigger_env_prefix}__"
+                                    else:
+                                        # Fallback to environment name
+                                        trigger_env_name = trigger_env.get("name", "").upper().strip()
+                                        trigger_env_prefix = self._sanitize_name(trigger_env_name)
+                                        if trigger_env_prefix:
+                                            trigger_env_prefix = f"{trigger_env_prefix}__"
                             full_trigger_job_name = f"{trigger_env_prefix}{trigger_job_name_base}"
                             trigger_job_name_safe = f"{project_name}_{full_trigger_job_name}"
                             break
