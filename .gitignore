@@ -20,6 +20,10 @@ wheels/
 .installed.cfg
 *.egg
 
+# Package manager lock files (optional - some projects commit these for reproducibility)
+# uv.lock  # Uncomment if you want to exclude uv.lock
+# For this project, we'll commit uv.lock for reproducible builds
+
 # Virtual environments
 venv/
 env/
