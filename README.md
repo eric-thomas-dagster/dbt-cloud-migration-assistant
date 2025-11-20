@@ -65,12 +65,21 @@ Replace `YOUR_PREFIX` with your account prefix (found in Account Settings).
 After running the migration:
 
 - ✅ Complete Dagster project with all your dbt projects, jobs, schedules, and sensors
+- ✅ **One `DbtProjectComponent` per dbt Cloud project** - each project gets its own component definition
 - ✅ Component-based YAML definitions (no Python code to maintain)
 - ✅ Deployment-aware configuration (works with Dagster Cloud)
 - ✅ DuckDB local development target (develop without production DB)
 - ✅ Job completion triggers automatically converted to Dagster sensors
 - ✅ Migration summary and validation scripts
 - ✅ Helper scripts to clone repositories and validate setup
+
+### Multiple dbt Projects
+
+If you have multiple dbt projects in dbt Cloud, the tool will:
+- Create a separate `DbtProjectComponent` for each project
+- Each project gets its own directory: `defs/<project_name>/defs.yaml`
+- All projects are registered in the same Dagster project
+- Jobs and schedules are organized by their source dbt project
 
 ## Next Steps
 
@@ -95,13 +104,22 @@ After migration completes:
 
 ## How It Works
 
-1. Connects to dbt Cloud API and fetches your configuration
+1. Connects to dbt Cloud API and fetches your configuration (projects, jobs, environments)
 2. Uses `create-dagster project` to scaffold Dagster project (falls back to `dg init` if needed)
-3. Uses `dg scaffold defs` to create dbt components
-4. Generates component-based YAML for jobs, schedules, and sensors
-5. Creates all necessary configuration files
+3. **Creates one `DbtProjectComponent` per dbt Cloud project** in `defs/<project_name>/defs.yaml`
+4. Uses `dg scaffold defs` to create dbt components for each project
+5. Generates component-based YAML for jobs, schedules, and sensors
+6. Creates all necessary configuration files
 
 All using Dagster's official CLI - no custom code generation!
+
+### Project Structure Example
+
+If you have 2 dbt projects in dbt Cloud:
+- `analytics` project → `defs/analytics/defs.yaml` (DbtProjectComponent)
+- `marketing` project → `defs/marketing/defs.yaml` (DbtProjectComponent)
+
+Both are registered in the same Dagster project and can share resources.
 
 ## Requirements
 
