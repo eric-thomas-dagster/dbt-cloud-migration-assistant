@@ -1,4 +1,4 @@
-"""Schedule component for Dagster Designer."""
+"""dbt Cloud Schedule component for Dagster - creates schedules from dbt Cloud schedule definitions."""
 
 from typing import Optional
 
@@ -6,8 +6,11 @@ import dagster as dg
 from dagster._core.definitions.asset_selection import AssetSelection
 
 
-class ScheduleComponent(dg.Component, dg.Model, dg.Resolvable):
-    """Component for creating schedules from YAML configuration."""
+class DbtCloudScheduleComponent(dg.Component, dg.Model, dg.Resolvable):
+    """Component for creating Dagster schedules from dbt Cloud schedule definitions.
+    
+    This is a specialized component for migrating dbt Cloud schedules to Dagster.
+    """
 
     schedule_name: str
     cron_expression: str

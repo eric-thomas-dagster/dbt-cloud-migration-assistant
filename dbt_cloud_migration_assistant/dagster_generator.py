@@ -529,9 +529,9 @@ root_module = "{project_package}"
                 f.write("from .schedule import ScheduleComponent\n")
                 f.write("from .sensor import SensorComponent\n\n")
                 f.write("__all__ = [\n")
-                f.write('    "JobComponent",\n')
-                f.write('    "ScheduleComponent",\n')
-                f.write('    "SensorComponent",\n')
+            f.write('    "DbtCloudJobComponent",\n')
+            f.write('    "DbtCloudScheduleComponent",\n')
+            f.write('    "DbtCloudSensorComponent",\n')
                 f.write("]\n")
 
     def _generate_jobs_and_schedules(
@@ -628,7 +628,7 @@ root_module = "{project_package}"
                     job_attributes["tags"] = tags
                 
                 job_def = {
-                    "type": f"{project_package}.components.job.JobComponent",
+                    "type": f"{project_package}.components.job.DbtCloudJobComponent",
                     "attributes": job_attributes,
                 }
                 all_job_defs.append(job_def)
@@ -641,7 +641,7 @@ root_module = "{project_package}"
                     cron = schedule.get("cron")
                     if cron:
                         schedule_def = {
-                            "type": f"{project_package}.components.schedule.ScheduleComponent",
+                            "type": f"{project_package}.components.schedule.DbtCloudScheduleComponent",
                             "attributes": {
                                 "schedule_name": f"{job_name_safe}_schedule",
                                 "cron_expression": cron,
@@ -713,9 +713,9 @@ root_module = "{project_package}"
                             }
                             status_desc = status_descriptions.get(dagster_status, dagster_status.lower())
                             
-                            sensor_def = {
-                                "type": f"{project_package}.components.sensor.SensorComponent",
-                                "attributes": {
+                        sensor_def = {
+                            "type": f"{project_package}.components.sensor.DbtCloudSensorComponent",
+                            "attributes": {
                                     "sensor_name": sensor_name,
                                     "sensor_type": "run_status",
                                     "job_name": job_name_safe,  # The job to trigger

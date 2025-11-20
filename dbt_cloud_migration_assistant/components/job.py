@@ -1,4 +1,4 @@
-"""Job component for Dagster Designer."""
+"""dbt Cloud Job component for Dagster - creates jobs from dbt Cloud job definitions."""
 
 from typing import Optional, Any
 from pydantic import field_validator
@@ -7,8 +7,12 @@ import dagster as dg
 from dagster._core.definitions.asset_selection import AssetSelection
 
 
-class JobComponent(dg.Component, dg.Model, dg.Resolvable):
-    """Component for creating jobs from YAML configuration."""
+class DbtCloudJobComponent(dg.Component, dg.Model, dg.Resolvable):
+    """Component for creating Dagster jobs from dbt Cloud job definitions.
+    
+    This is a specialized component for migrating dbt Cloud jobs to Dagster.
+    It handles dbt-specific asset selection and configuration.
+    """
 
     job_name: str
     asset_selection: list[str]

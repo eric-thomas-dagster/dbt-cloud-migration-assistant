@@ -1,12 +1,15 @@
-"""Sensor component for Dagster Designer."""
+"""dbt Cloud Sensor component for Dagster - creates sensors from dbt Cloud job completion triggers."""
 
 from typing import Optional, Literal
 
 import dagster as dg
 
 
-class SensorComponent(dg.Component, dg.Model, dg.Resolvable):
-    """Component for creating sensors from YAML configuration."""
+class DbtCloudSensorComponent(dg.Component, dg.Model, dg.Resolvable):
+    """Component for creating Dagster sensors from dbt Cloud job completion triggers.
+    
+    This is a specialized component for migrating dbt Cloud job completion triggers to Dagster sensors.
+    """
 
     sensor_name: str
     sensor_type: Literal["file", "run_status", "asset", "custom"]
