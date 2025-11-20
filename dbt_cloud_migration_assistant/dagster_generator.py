@@ -668,17 +668,24 @@ root_module = "{project_package}"
             jobs_dir.mkdir(parents=True, exist_ok=True)
             
             # Write each job to its own folder with defs.yaml (standard Dagster component structure)
+            # Create a custom YAML dumper that ensures tag values are strings
+            class TagStringDumper(yaml.SafeDumper):
+                def represent_str(self, data):
+                    return self.represent_scalar('tag:yaml.org,2002:str', str(data))
+            
+            TagStringDumper.add_representer(int, TagStringDumper.represent_str)
+            
             for i, job_def in enumerate(all_job_defs):
                 job_name = job_def.get("attributes", {}).get("job_name", f"job_{i}")
                 job_folder = jobs_dir / job_name
                 job_folder.mkdir(parents=True, exist_ok=True)
                 job_file = job_folder / "defs.yaml"
                 with open(job_file, "w") as f:
-                    # Use representer to ensure tag values are always strings
-                    def str_presenter(dumper, data):
-                        return dumper.represent_str(str(data))
-                    yaml.add_representer(int, str_presenter)
-                    yaml.dump(job_def, f, default_flow_style=False, sort_keys=False)
+                    # Ensure tag values in attributes are strings before dumping
+                    if "tags" in job_def.get("attributes", {}):
+                        tags = job_def["attributes"]["tags"]
+                        job_def["attributes"]["tags"] = {k: str(v) for k, v in tags.items()}
+                    yaml.dump(job_def, f, Dumper=TagStringDumper, default_flow_style=False, sort_keys=False)
 
         # Write schedules as component-based YAML
         # Each component should be in its own folder with defs.yaml (standard Dagster structure)
