@@ -1459,6 +1459,7 @@ Jobs and schedules are defined using **custom components** in YAML:
         import re
         
         selected_models = []
+        has_tag_or_path_selection = False
         
         for step in execute_steps:
             if not step or not isinstance(step, str):
@@ -1467,11 +1468,12 @@ Jobs and schedules are defined using **custom components** in YAML:
             # Look for --select or --models flags
             # Pattern: --select model1 model2 model3 or --models model1 model2
             # Also handle: --select +model1, --select model1+, --select tag:my_tag, etc.
-            select_pattern = r'--(?:select|models)\s+([^\s]+(?:\s+[^\s]+)*)'
+            # Match everything after --select/--models until the next flag or end of string
+            select_pattern = r'--(?:select|models)\s+([^-]+?)(?:\s+--|$)'
             match = re.search(select_pattern, step)
             
             if match:
-                # Extract the selection arguments
+                # Extract the selection arguments (everything after --select until next flag)
                 selection_args = match.group(1).strip()
                 
                 # Split by spaces, but handle quoted strings
@@ -1493,7 +1495,8 @@ Jobs and schedules are defined using **custom components** in YAML:
                     
                     if part.startswith('tag:') or part.startswith('path:') or part.startswith('config.'):
                         # Tag/path/config selections are not directly mappable to asset keys
-                        # Fall back to selecting all assets
+                        # Mark that we have this type of selection
+                        has_tag_or_path_selection = True
                         continue
                     
                     # Remove dependency operators (+ prefix/suffix)
@@ -1504,8 +1507,8 @@ Jobs and schedules are defined using **custom components** in YAML:
                     if model_name and not model_name.startswith(('tag:', 'path:', 'config.', '@', '&')):
                         selected_models.append(model_name)
         
-        # If we found specific model selections, use them
-        if selected_models:
+        # If we found specific model selections and no tag/path selections, use them
+        if selected_models and not has_tag_or_path_selection:
             # Remove duplicates while preserving order
             seen = set()
             unique_models = []
@@ -1515,7 +1518,7 @@ Jobs and schedules are defined using **custom components** in YAML:
                     unique_models.append(model)
             return unique_models
         
-        # If no specific selection found, default to all assets
+        # If no specific selection found or tag/path selection used, default to all assets
         return [f"{component_name}.*"]
     
     def _sanitize_name(self, name: str) -> str:
