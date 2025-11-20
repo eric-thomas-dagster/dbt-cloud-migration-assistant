@@ -1639,12 +1639,6 @@ Jobs and schedules are defined using **custom components** in YAML:
                 words = deployment_type_str.upper().split()
                 result = words[0] if words else deployment_type_str.upper()
             
-            # Debug output (remove after confirming it works)
-            if not hasattr(self, '_deployment_type_debug_printed'):
-                import sys
-                print(f"✅ Found deployment_type: '{deployment_type}' -> prefix: '{result}'", file=sys.stderr)
-                self._deployment_type_debug_printed = True
-            
             return result
         
         return ""
