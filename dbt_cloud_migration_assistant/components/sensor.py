@@ -98,7 +98,7 @@ class DbtCloudSensorComponent(dg.Component, dg.Model, dg.Resolvable):
             if monitored_job:
                 # Check if the run that changed status is for the monitored job
                 if context.dagster_run.job_name != monitored_job:
-                    return None  # Skip if not the job we're monitoring
+                    return dg.SkipReason(f"Run is for job '{context.dagster_run.job_name}', not monitored job '{monitored_job}'")
             
             # Return RunRequest with the job to trigger
             return dg.RunRequest(
