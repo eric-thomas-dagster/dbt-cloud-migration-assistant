@@ -70,20 +70,28 @@ class SensorComponent(dg.Component, dg.Model, dg.Resolvable):
         }
         dagster_status = status_map.get(self.run_status, dg.DagsterRunStatus.SUCCESS)
         
-        # Build sensor function that will be decorated
-        # run_status_sensor doesn't take job_name in decorator - we return RunRequest with job_name
-        @dg.run_status_sensor(
-            name=self.sensor_name,
-            run_status=dagster_status,
-            monitored_job_name=self.monitored_job_name if self.monitored_job_name else None,
-            description=self.description or f"Monitor {self.monitored_job_name} for {self.run_status}",
-            minimum_interval_seconds=self.minimum_interval_seconds,
-            default_status=(
+        # Build sensor parameters
+        # run_status_sensor uses monitored_jobs (sequence) and request_job (singular JobDefinition)
+        # We need to resolve job names to JobDefinitions at runtime
+        sensor_params = {
+            "name": self.sensor_name,
+            "run_status": dagster_status,
+            "description": self.description or f"Monitor {self.monitored_job_name} for {self.run_status}",
+            "minimum_interval_seconds": self.minimum_interval_seconds,
+            "default_status": (
                 dg.DefaultSensorStatus.RUNNING
                 if self.default_status == "RUNNING"
                 else dg.DefaultSensorStatus.STOPPED
             ),
-        )
+        }
+        
+        # Add monitored_jobs if provided (filters to only monitor specific job)
+        # We'll use job_selection with a string job name since we can't resolve JobDefinition here
+        if self.monitored_job_name:
+            # Use job_selection to filter by job name
+            sensor_params["job_selection"] = [self.monitored_job_name]
+        
+        @dg.run_status_sensor(**sensor_params)
         def status_sensor(context: dg.RunStatusSensorContext):
             """Sensor that triggers on run status changes."""
             # Return RunRequest with the job to trigger
