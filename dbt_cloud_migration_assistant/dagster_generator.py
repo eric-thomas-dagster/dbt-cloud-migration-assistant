@@ -575,25 +575,33 @@ root_module = "{project_package}"
                         ).strip()
 
         # Write jobs as component-based YAML
+        # Each component should be in its own file or as a single object
         project_package = self._get_project_package_name()
         if all_job_defs:
             # Create directory structure manually (more reliable than scaffold)
             jobs_dir = self.output_dir / project_package / "defs" / "jobs"
             jobs_dir.mkdir(parents=True, exist_ok=True)
             
-            # Write all job definitions to defs.yaml
-            with open(jobs_dir / "defs.yaml", "w") as f:
-                yaml.dump(all_job_defs, f, default_flow_style=False, sort_keys=False)
+            # Write each job to a separate file (Dagster expects single objects, not lists)
+            for i, job_def in enumerate(all_job_defs):
+                job_name = job_def.get("attributes", {}).get("job_name", f"job_{i}")
+                job_file = jobs_dir / f"{job_name}.yaml"
+                with open(job_file, "w") as f:
+                    yaml.dump(job_def, f, default_flow_style=False, sort_keys=False)
 
         # Write schedules as component-based YAML
+        # Each component should be in its own file or as a single object
         if all_schedule_defs:
             # Create directory structure manually (more reliable than scaffold)
             schedules_dir = self.output_dir / project_package / "defs" / "schedules"
             schedules_dir.mkdir(parents=True, exist_ok=True)
             
-            # Write all schedule definitions to defs.yaml
-            with open(schedules_dir / "defs.yaml", "w") as f:
-                yaml.dump(all_schedule_defs, f, default_flow_style=False, sort_keys=False)
+            # Write each schedule to a separate file (Dagster expects single objects, not lists)
+            for i, schedule_def in enumerate(all_schedule_defs):
+                schedule_name = schedule_def.get("attributes", {}).get("schedule_name", f"schedule_{i}")
+                schedule_file = schedules_dir / f"{schedule_name}.yaml"
+                with open(schedule_file, "w") as f:
+                    yaml.dump(schedule_def, f, default_flow_style=False, sort_keys=False)
 
 
     def _update_pyproject_toml(self, required_adapters: Set[str]):
