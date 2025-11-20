@@ -1597,29 +1597,33 @@ Jobs and schedules are defined using **custom components** in YAML:
         Returns the prefix (e.g., "PROD", "STG", "GENERAL") or empty string if not found.
         """
         # Check multiple possible field names for deployment type
+        # IMPORTANT: Check deployment_type FIRST, as type might be "deployment" (the environment type, not deployment type)
         deployment_type = (
-            env.get("deployment_type") 
+            env.get("deployment_type")  # This is the "Set deployment type" field: "production", "staging", "general"
             or env.get("deployment_environment_type")
             or env.get("deployment_environment_type_name")
-            or env.get("type")  # This might be "deployment" for deployment environments
             or env.get("environment_type")
             or env.get("deployment", {}).get("type") if isinstance(env.get("deployment"), dict) else None
             or env.get("deployment", {}).get("environment_type") if isinstance(env.get("deployment"), dict) else None
             or env.get("deployment", {}).get("deployment_type") if isinstance(env.get("deployment"), dict) else None
             or env.get("settings", {}).get("deployment_type") if isinstance(env.get("settings"), dict) else None
+            # Don't check env.get("type") as it's "deployment" (environment type), not the deployment type we want
         )
         
-        # If not found, print available keys for debugging (only first time)
+        # If not found, print available keys and values for debugging (only first time)
         if not deployment_type and not hasattr(self, '_debug_printed'):
             import sys
-            print(f"\n⚠️  Deployment type not found in environment object. Available keys: {list(env.keys())}", file=sys.stderr)
+            print(f"\n⚠️  Deployment type not found. Checking environment object...", file=sys.stderr)
             print(f"   Environment name: {env.get('name')}", file=sys.stderr)
             print(f"   Environment ID: {env.get('id')}", file=sys.stderr)
+            print(f"   deployment_type value: {repr(env.get('deployment_type'))}", file=sys.stderr)
+            print(f"   type value: {repr(env.get('type'))}", file=sys.stderr)
+            print(f"   environment_type value: {repr(env.get('environment_type'))}", file=sys.stderr)
             # Check nested structures
             if env.get("deployment"):
-                print(f"   Deployment keys: {list(env.get('deployment', {}).keys())}", file=sys.stderr)
+                print(f"   deployment object: {env.get('deployment')}", file=sys.stderr)
             if env.get("settings"):
-                print(f"   Settings keys: {list(env.get('settings', {}).keys())}", file=sys.stderr)
+                print(f"   settings object: {env.get('settings')}", file=sys.stderr)
             self._debug_printed = True
         
         if deployment_type:
