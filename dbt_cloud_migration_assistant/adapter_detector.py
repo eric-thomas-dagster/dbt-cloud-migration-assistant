@@ -109,47 +109,115 @@ def extract_environment_variables(
         # Extract connection credentials (we'll use placeholders for security)
         connection = env.get("connection", {})
         if connection:
-            # Database connection variables
-            if connection.get("account"):
-                env_vars[f"DBT_{env_name}_ACCOUNT"] = connection.get("account", "")
-            if connection.get("database"):
-                env_vars[f"DBT_{env_name}_DATABASE"] = connection.get("database", "")
-            if connection.get("schema"):
-                env_vars[f"DBT_{env_name}_SCHEMA"] = connection.get("schema", "")
-            if connection.get("warehouse"):
-                env_vars[f"DBT_{env_name}_WAREHOUSE"] = connection.get("warehouse", "")
-            if connection.get("user") or connection.get("username"):
-                env_vars[f"DBT_{env_name}_USER"] = (
-                    connection.get("user") or connection.get("username", "")
-                )
-            # Password should be set manually
-            if connection.get("password"):
-                env_vars[f"DBT_{env_name}_PASSWORD"] = "<SET_MANUALLY>"
-
-            # Connection-specific variables
+            # Extract connection details - they can be in different formats:
+            # 1. Direct format: connection.type, connection.host, etc.
+            # 2. Nested format: connection.connection_details.fields.{field}.value
+            connection_details = connection.get("connection_details", {})
+            fields = connection_details.get("fields", {}) if connection_details else {}
+            
+            # Helper function to get field value (handles both formats)
+            def get_field_value(field_name: str, default=None):
+                # Try nested format first (connection_details.fields)
+                if fields:
+                    field_data = fields.get(field_name, {})
+                    if isinstance(field_data, dict):
+                        return field_data.get("value", default)
+                # Try direct format
+                return connection.get(field_name, default)
+            
+            # Get connection type
             connection_type = (
-                connection.get("type")
+                get_field_value("type")
+                or connection.get("type")
                 or connection.get("connection_type")
                 or "postgres"
-            ).lower()
+            )
+            if connection_type:
+                connection_type = connection_type.lower()
+            
+            # Common connection variables (extract from nested structure if available)
+            account = get_field_value("account") or connection.get("account")
+            database = get_field_value("database") or connection.get("database")
+            schema = get_field_value("schema") or connection.get("schema")
+            warehouse = get_field_value("warehouse") or connection.get("warehouse")
+            user = get_field_value("user") or connection.get("user") or connection.get("username")
+            host = get_field_value("host") or connection.get("host")
+            port = get_field_value("port") or connection.get("port")
+            project_id = get_field_value("project_id") or connection.get("project_id") or connection.get("project")
+            
+            # Add common variables
+            if account:
+                env_vars[f"DBT_{env_name}_ACCOUNT"] = account
+            if database:
+                env_vars[f"DBT_{env_name}_DATABASE"] = database
+            if schema:
+                env_vars[f"DBT_{env_name}_SCHEMA"] = schema
+            if warehouse:
+                env_vars[f"DBT_{env_name}_WAREHOUSE"] = warehouse
+            if user:
+                env_vars[f"DBT_{env_name}_USER"] = user
+            if host:
+                env_vars[f"DBT_{env_name}_HOST"] = host
+            if port:
+                env_vars[f"DBT_{env_name}_PORT"] = str(port)
+            
+            # Password/token should be set manually (never extract actual values)
+            if get_field_value("password") or connection.get("password"):
+                env_vars[f"DBT_{env_name}_PASSWORD"] = "<SET_MANUALLY>"
+            if get_field_value("token") or connection.get("token"):
+                env_vars[f"DBT_{env_name}_TOKEN"] = "<SET_MANUALLY>"
+            if get_field_value("private_key") or connection.get("private_key"):
+                env_vars[f"DBT_{env_name}_PRIVATE_KEY"] = "<SET_MANUALLY>"
 
+            # Connection-specific variables
             if connection_type == "snowflake":
-                if connection.get("role"):
-                    env_vars[f"DBT_{env_name}_ROLE"] = connection.get("role", "")
+                role = get_field_value("role") or connection.get("role")
+                if role:
+                    env_vars[f"DBT_{env_name}_ROLE"] = role
             elif connection_type == "bigquery":
-                if connection.get("project"):
-                    env_vars[f"DBT_{env_name}_PROJECT"] = connection.get("project", "")
-                if connection.get("keyfile"):
-                    env_vars[f"DBT_{env_name}_KEYFILE"] = "<SET_MANUALLY>"
+                if project_id:
+                    env_vars[f"DBT_{env_name}_PROJECT"] = project_id
+                # BigQuery uses service account JSON keyfile
+                env_vars[f"DBT_{env_name}_KEYFILE"] = "<SET_MANUALLY>"
+                location = get_field_value("location") or connection.get("location")
+                if location:
+                    env_vars[f"DBT_{env_name}_LOCATION"] = location
             elif connection_type == "databricks":
-                if connection.get("host"):
-                    env_vars[f"DBT_{env_name}_HOST"] = connection.get("host", "")
-                if connection.get("http_path"):
-                    env_vars[f"DBT_{env_name}_HTTP_PATH"] = connection.get(
-                        "http_path", ""
-                    )
-                if connection.get("token"):
-                    env_vars[f"DBT_{env_name}_TOKEN"] = "<SET_MANUALLY>"
+                http_path = get_field_value("http_path") or connection.get("http_path")
+                if http_path:
+                    env_vars[f"DBT_{env_name}_HTTP_PATH"] = http_path
+            elif connection_type == "redshift":
+                # Redshift uses same structure as postgres
+                pass  # Already handled above
+            elif connection_type == "spark" or connection_type == "apache_spark":
+                method = get_field_value("method") or connection.get("method")
+                if method:
+                    env_vars[f"DBT_{env_name}_METHOD"] = method
+            elif connection_type == "athena":
+                s3_staging_dir = get_field_value("s3_staging_dir") or connection.get("s3_staging_dir")
+                region_name = get_field_value("region_name") or connection.get("region_name")
+                if s3_staging_dir:
+                    env_vars[f"DBT_{env_name}_S3_STAGING_DIR"] = s3_staging_dir
+                if region_name:
+                    env_vars[f"DBT_{env_name}_REGION"] = region_name
+            elif connection_type == "trino" or connection_type == "starburst":
+                catalog = get_field_value("catalog") or connection.get("catalog")
+                if catalog:
+                    env_vars[f"DBT_{env_name}_CATALOG"] = catalog
+            elif connection_type == "synapse" or connection_type == "azure_synapse":
+                server = get_field_value("server") or connection.get("server") or host
+                if server:
+                    env_vars[f"DBT_{env_name}_SERVER"] = server
+            elif connection_type == "fabric" or connection_type == "microsoft_fabric":
+                server = get_field_value("server") or connection.get("server") or host
+                if server:
+                    env_vars[f"DBT_{env_name}_SERVER"] = server
+            elif connection_type == "teradata":
+                # Teradata uses standard host/user/database
+                pass  # Already handled above
+            elif connection_type == "alloydb":
+                # AlloyDB uses PostgreSQL structure
+                pass  # Already handled above
 
         # Extract custom environment variables if available
         custom_env_vars = env.get("custom_environment_variables", {})
