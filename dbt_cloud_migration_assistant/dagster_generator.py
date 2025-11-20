@@ -570,12 +570,44 @@ root_module = "{project_package}"
             for job in project_jobs:
                 job_id = job.get("id")
                 job_name = self._sanitize_name(job.get("name", f"job_{job_id}"))
+                
+                # Get environment name for prefixing
+                job_env_id = job.get("environment_id")
+                env_prefix = ""
+                if job_env_id:
+                    env = next((e for e in environments if e.get("id") == job_env_id), None)
+                    if env:
+                        env_name = env.get("name", "").upper().strip()
+                        # Use environment name as prefix (e.g., "PROD", "STG", "DEV")
+                        # Sanitize to ensure it's valid for use in job names
+                        env_prefix = self._sanitize_name(env_name)
+                        if env_prefix:
+                            env_prefix = f"{env_prefix}__"
+                
                 # Ensure unique job names by including job ID if names are duplicated
-                # Check if we've already seen this job name
-                existing_job_names = [self._sanitize_name(j.get("name", f"job_{j.get('id')}")) for j in project_jobs[:project_jobs.index(job)]]
-                if job_name in existing_job_names:
+                # Check if we've already seen this job name (with same environment)
+                existing_job_names = []
+                for j in project_jobs[:project_jobs.index(job)]:
+                    existing_job_id = j.get("id")
+                    existing_job_name = self._sanitize_name(j.get("name", f"job_{existing_job_id}"))
+                    existing_env_id = j.get("environment_id")
+                    existing_env_prefix = ""
+                    if existing_env_id:
+                        existing_env = next((e for e in environments if e.get("id") == existing_env_id), None)
+                        if existing_env:
+                            existing_env_name = existing_env.get("name", "").upper().strip()
+                            existing_env_prefix = self._sanitize_name(existing_env_name)
+                            if existing_env_prefix:
+                                existing_env_prefix = f"{existing_env_prefix}__"
+                    existing_job_names.append(f"{existing_env_prefix}{existing_job_name}")
+                
+                full_job_name = f"{env_prefix}{job_name}"
+                if full_job_name in existing_job_names:
+                    # If still duplicate, append job ID
                     job_name = f"{job_name}_{job_id}"
-                job_name_safe = f"{project_name}_{job_name}"
+                    full_job_name = f"{env_prefix}{job_name}"
+                
+                job_name_safe = f"{project_name}_{full_job_name}"
 
                 # Create job component definition
                 # Jobs reference assets from the dbt component using asset selection
