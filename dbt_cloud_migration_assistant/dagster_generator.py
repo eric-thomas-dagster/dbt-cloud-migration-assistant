@@ -713,9 +713,9 @@ root_module = "{project_package}"
                             }
                             status_desc = status_descriptions.get(dagster_status, dagster_status.lower())
                             
-                        sensor_def = {
-                            "type": f"{project_package}.components.sensor.DbtCloudSensorComponent",
-                            "attributes": {
+                            sensor_def = {
+                                "type": f"{project_package}.components.sensor.DbtCloudSensorComponent",
+                                "attributes": {
                                     "sensor_name": sensor_name,
                                     "sensor_type": "run_status",
                                     "job_name": job_name_safe,  # The job to trigger
