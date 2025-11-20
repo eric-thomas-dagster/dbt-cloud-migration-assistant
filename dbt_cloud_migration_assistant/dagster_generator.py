@@ -448,12 +448,14 @@ root_module = "{project_package}"
         elif not init_file.exists():
             # Create minimal __init__.py if it doesn't exist
             with open(init_file, "w") as f:
-                f.write('"""Custom Dagster components for jobs and schedules."""\n\n')
+                f.write('"""Custom Dagster components for jobs, schedules, and sensors."""\n\n')
                 f.write("from .job import JobComponent\n")
-                f.write("from .schedule import ScheduleComponent\n\n")
+                f.write("from .schedule import ScheduleComponent\n")
+                f.write("from .sensor import SensorComponent\n\n")
                 f.write("__all__ = [\n")
                 f.write('    "JobComponent",\n')
                 f.write('    "ScheduleComponent",\n')
+                f.write('    "SensorComponent",\n')
                 f.write("]\n")
 
     def _generate_jobs_and_schedules(
@@ -473,9 +475,10 @@ root_module = "{project_package}"
                 jobs_by_project[project_id] = []
             jobs_by_project[project_id].append(job)
 
-        # Create component-based YAML definitions for jobs and schedules
+        # Create component-based YAML definitions for jobs, schedules, and sensors
         all_job_defs = []
         all_schedule_defs = []
+        all_sensor_defs = []
         
         for project_id, project_jobs in jobs_by_project.items():
             project = next((p for p in projects if p.get("id") == project_id), None)
@@ -602,6 +605,20 @@ root_module = "{project_package}"
                 schedule_file = schedules_dir / f"{schedule_name}.yaml"
                 with open(schedule_file, "w") as f:
                     yaml.dump(schedule_def, f, default_flow_style=False, sort_keys=False)
+        
+        # Write sensors as component-based YAML
+        # Each component should be in its own file or as a single object
+        if all_sensor_defs:
+            # Create directory structure manually (more reliable than scaffold)
+            sensors_dir = self.output_dir / project_package / "defs" / "sensors"
+            sensors_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Write each sensor to a separate file (Dagster expects single objects, not lists)
+            for i, sensor_def in enumerate(all_sensor_defs):
+                sensor_name = sensor_def.get("attributes", {}).get("sensor_name", f"sensor_{i}")
+                sensor_file = sensors_dir / f"{sensor_name}.yaml"
+                with open(sensor_file, "w") as f:
+                    yaml.dump(sensor_def, f, default_flow_style=False, sort_keys=False)
 
 
     def _update_pyproject_toml(self, required_adapters: Set[str]):
