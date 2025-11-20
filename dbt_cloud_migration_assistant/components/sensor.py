@@ -71,7 +71,7 @@ class SensorComponent(dg.Component, dg.Model, dg.Resolvable):
         dagster_status = status_map.get(self.run_status, dg.DagsterRunStatus.SUCCESS)
         
         # Build sensor parameters
-        # run_status_sensor uses job_selection (sequence of JobSelector or JobDefinition)
+        # We'll filter by job name in the sensor function itself
         sensor_params = {
             "name": self.sensor_name,
             "run_status": dagster_status,
@@ -84,19 +84,23 @@ class SensorComponent(dg.Component, dg.Model, dg.Resolvable):
             ),
         }
         
-        # Add job_selection if provided (filters to only monitor specific job)
-        # Use JobSelector to specify which job to monitor
-        if self.monitored_job_name:
-            from dagster import JobSelector
-            sensor_params["job_selection"] = [JobSelector(job_name=self.monitored_job_name)]
+        # Store monitored_job_name for use in the sensor function
+        monitored_job = self.monitored_job_name
+        job_to_trigger = self.job_name
         
         @dg.run_status_sensor(**sensor_params)
         def status_sensor(context: dg.RunStatusSensorContext):
             """Sensor that triggers on run status changes."""
+            # Filter by monitored job name if specified
+            if monitored_job:
+                # Check if the run that changed status is for the monitored job
+                if context.dagster_run.job_name != monitored_job:
+                    return None  # Skip if not the job we're monitoring
+            
             # Return RunRequest with the job to trigger
             return dg.RunRequest(
                 run_key=f"status_{context.dagster_run.run_id}",
-                job_name=self.job_name,  # The job to trigger
+                job_name=job_to_trigger,
             )
 
         return status_sensor
