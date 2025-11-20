@@ -674,6 +674,10 @@ root_module = "{project_package}"
                 job_folder.mkdir(parents=True, exist_ok=True)
                 job_file = job_folder / "defs.yaml"
                 with open(job_file, "w") as f:
+                    # Use representer to ensure tag values are always strings
+                    def str_presenter(dumper, data):
+                        return dumper.represent_str(str(data))
+                    yaml.add_representer(int, str_presenter)
                     yaml.dump(job_def, f, default_flow_style=False, sort_keys=False)
 
         # Write schedules as component-based YAML
