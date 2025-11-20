@@ -388,8 +388,11 @@ root_module = "{project_package}"
                     f.write('"""Dagster definitions loaded from YAML components."""\n\n')
                     f.write('from pathlib import Path\n')
                     f.write('from dagster import load_from_defs_folder\n\n')
+                    f.write('# Import custom components to ensure they\'re registered\n')
+                    f.write('# This makes them discoverable by load_from_defs_folder\n')
+                    f.write('from .components import JobComponent, ScheduleComponent, SensorComponent\n\n')
                     f.write('# Load all definitions from YAML files in the defs/ directory\n')
-                    f.write('# This includes dbt components, jobs, and schedules\n')
+                    f.write('# This includes dbt components, jobs, schedules, and sensors\n')
                     f.write('defs = load_from_defs_folder(project_root=Path(__file__).parent / "defs")\n')
 
     def _register_custom_components(self):
