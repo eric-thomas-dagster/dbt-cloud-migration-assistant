@@ -587,6 +587,12 @@ root_module = "{project_package}"
                             env_prefix = self._sanitize_name(env_name)
                             if env_prefix:
                                 env_prefix = f"{env_prefix}__"
+                    else:
+                        # Environment not found - this shouldn't happen but handle gracefully
+                        import sys
+                        if not hasattr(self, '_env_not_found_warned'):
+                            print(f"⚠️  Warning: Environment ID {job_env_id} not found in environments list", file=sys.stderr)
+                            self._env_not_found_warned = True
                 
                 # Ensure unique job names by including job ID if names are duplicated
                 # Check if we've already seen this job name (with same deployment type)
@@ -1598,33 +1604,20 @@ Jobs and schedules are defined using **custom components** in YAML:
         """
         # Check multiple possible field names for deployment type
         # IMPORTANT: Check deployment_type FIRST, as type might be "deployment" (the environment type, not deployment type)
-        deployment_type = (
-            env.get("deployment_type")  # This is the "Set deployment type" field: "production", "staging", "general"
-            or env.get("deployment_environment_type")
-            or env.get("deployment_environment_type_name")
-            or env.get("environment_type")
-            or env.get("deployment", {}).get("type") if isinstance(env.get("deployment"), dict) else None
-            or env.get("deployment", {}).get("environment_type") if isinstance(env.get("deployment"), dict) else None
-            or env.get("deployment", {}).get("deployment_type") if isinstance(env.get("deployment"), dict) else None
-            or env.get("settings", {}).get("deployment_type") if isinstance(env.get("settings"), dict) else None
-            # Don't check env.get("type") as it's "deployment" (environment type), not the deployment type we want
-        )
+        # Direct check first (most common case)
+        deployment_type = env.get("deployment_type")
         
-        # If not found, print available keys and values for debugging (only first time)
-        if not deployment_type and not hasattr(self, '_debug_printed'):
-            import sys
-            print(f"\n⚠️  Deployment type not found. Checking environment object...", file=sys.stderr)
-            print(f"   Environment name: {env.get('name')}", file=sys.stderr)
-            print(f"   Environment ID: {env.get('id')}", file=sys.stderr)
-            print(f"   deployment_type value: {repr(env.get('deployment_type'))}", file=sys.stderr)
-            print(f"   type value: {repr(env.get('type'))}", file=sys.stderr)
-            print(f"   environment_type value: {repr(env.get('environment_type'))}", file=sys.stderr)
-            # Check nested structures
-            if env.get("deployment"):
-                print(f"   deployment object: {env.get('deployment')}", file=sys.stderr)
-            if env.get("settings"):
-                print(f"   settings object: {env.get('settings')}", file=sys.stderr)
-            self._debug_printed = True
+        # If not found, check other possible locations
+        if not deployment_type:
+            deployment_type = (
+                env.get("deployment_environment_type")
+                or env.get("deployment_environment_type_name")
+                or env.get("environment_type")
+                or (env.get("deployment", {}).get("type") if isinstance(env.get("deployment"), dict) else None)
+                or (env.get("deployment", {}).get("environment_type") if isinstance(env.get("deployment"), dict) else None)
+                or (env.get("deployment", {}).get("deployment_type") if isinstance(env.get("deployment"), dict) else None)
+                or (env.get("settings", {}).get("deployment_type") if isinstance(env.get("settings"), dict) else None)
+            )
         
         if deployment_type:
             # Handle different formats:
