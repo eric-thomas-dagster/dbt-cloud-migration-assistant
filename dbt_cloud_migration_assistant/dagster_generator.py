@@ -578,7 +578,15 @@ root_module = "{project_package}"
                     env = next((e for e in environments if e.get("id") == job_env_id), None)
                     if env:
                         # Use deployment type if available, otherwise fall back to environment name
-                        deployment_type = env.get("type") or env.get("deployment_type") or env.get("environment_type")
+                        # Check multiple possible field names for deployment type
+                        deployment_type = (
+                            env.get("type") 
+                            or env.get("deployment_type") 
+                            or env.get("environment_type")
+                            or env.get("deployment", {}).get("type") if isinstance(env.get("deployment"), dict) else None
+                            or env.get("deployment", {}).get("environment_type") if isinstance(env.get("deployment"), dict) else None
+                            or env.get("settings", {}).get("deployment_type") if isinstance(env.get("settings"), dict) else None
+                        )
                         if deployment_type:
                             # Deployment type is usually a string like "production", "staging", "development"
                             # Convert to uppercase and use as prefix
@@ -604,8 +612,15 @@ root_module = "{project_package}"
                     if existing_env_id:
                         existing_env = next((e for e in environments if e.get("id") == existing_env_id), None)
                         if existing_env:
-                            # Use deployment type if available
-                            existing_deployment_type = existing_env.get("type") or existing_env.get("deployment_type") or existing_env.get("environment_type")
+                            # Use deployment type if available (check multiple possible field names)
+                            existing_deployment_type = (
+                                existing_env.get("type") 
+                                or existing_env.get("deployment_type") 
+                                or existing_env.get("environment_type")
+                                or existing_env.get("deployment", {}).get("type") if isinstance(existing_env.get("deployment"), dict) else None
+                                or existing_env.get("deployment", {}).get("environment_type") if isinstance(existing_env.get("deployment"), dict) else None
+                                or existing_env.get("settings", {}).get("deployment_type") if isinstance(existing_env.get("settings"), dict) else None
+                            )
                             if existing_deployment_type:
                                 existing_deployment_type_upper = str(existing_deployment_type).upper().strip()
                                 existing_env_prefix = self._sanitize_name(existing_deployment_type_upper)
@@ -725,8 +740,15 @@ root_module = "{project_package}"
                             if trigger_env_id:
                                 trigger_env = next((e for e in environments if e.get("id") == trigger_env_id), None)
                                 if trigger_env:
-                                    # Use deployment type if available
-                                    trigger_deployment_type = trigger_env.get("type") or trigger_env.get("deployment_type") or trigger_env.get("environment_type")
+                                    # Use deployment type if available (check multiple possible field names)
+                                    trigger_deployment_type = (
+                                        trigger_env.get("type") 
+                                        or trigger_env.get("deployment_type") 
+                                        or trigger_env.get("environment_type")
+                                        or trigger_env.get("deployment", {}).get("type") if isinstance(trigger_env.get("deployment"), dict) else None
+                                        or trigger_env.get("deployment", {}).get("environment_type") if isinstance(trigger_env.get("deployment"), dict) else None
+                                        or trigger_env.get("settings", {}).get("deployment_type") if isinstance(trigger_env.get("settings"), dict) else None
+                                    )
                                     if trigger_deployment_type:
                                         trigger_deployment_type_upper = str(trigger_deployment_type).upper().strip()
                                         trigger_env_prefix = self._sanitize_name(trigger_deployment_type_upper)
