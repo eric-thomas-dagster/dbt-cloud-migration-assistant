@@ -431,6 +431,20 @@ root_module = "{project_package}"
                 # If scaffold fails, we'll create it manually
                 pass
         
+        # Try to scaffold SensorComponent using CLI (if it doesn't exist)
+        sensor_component_file = components_dir / "sensor.py"
+        if not sensor_component_file.exists():
+            try:
+                subprocess.run(
+                    ["dg", "scaffold", "component", "SensorComponent"],
+                    check=True,
+                    cwd=self.output_dir,
+                    capture_output=True,
+                )
+            except subprocess.CalledProcessError:
+                # If scaffold fails, we'll create it manually
+                pass
+        
         # Copy our custom component implementations (overwriting scaffolded versions)
         job_component_source = Path(__file__).parent / "components" / "job.py"
         if job_component_source.exists():
@@ -439,6 +453,10 @@ root_module = "{project_package}"
         schedule_component_source = Path(__file__).parent / "components" / "schedule.py"
         if schedule_component_source.exists():
             shutil.copy2(schedule_component_source, schedule_component_file)
+        
+        sensor_component_source = Path(__file__).parent / "components" / "sensor.py"
+        if sensor_component_source.exists():
+            shutil.copy2(sensor_component_source, sensor_component_file)
         
         # Ensure __init__.py exists
         init_file = components_dir / "__init__.py"
