@@ -19,10 +19,16 @@ dbt-cloud-migrate --api-key YOUR_API_KEY --account-id YOUR_ACCOUNT_ID
 
 That's it! The tool will automatically:
 - Clone all dbt project repositories
-- Copy `profiles.yml` to `~/.dbt/profiles.yml`
+- Generate `profiles.yml` with all your dbt Cloud environments
+- Copy `profiles.yml` to `~/.dbt/profiles.yml` (shared across all projects)
 - Install all dependencies
 
 You'll get a complete Dagster project ready to run!
+
+**Note:** The `profiles.yml` file contains profiles for all your dbt Cloud **environments** (not projects). Multiple dbt projects can share the same `profiles.yml` file - each project references the appropriate profile name in its `dbt_project.yml`. The tool creates:
+- One profile per dbt Cloud environment (e.g., `prod`, `staging`)
+- Each profile includes both the environment's connection and a `local` DuckDB target for development
+- A `default` profile for compatibility with standard dbt projects
 
 ## Interactive Mode
 
@@ -96,6 +102,7 @@ If you have multiple dbt projects in dbt Cloud, the tool will:
 - Each project gets its own directory: `defs/<project_name>/defs.yaml`
 - All projects are registered in the same Dagster project
 - Jobs and schedules are organized by their source dbt project
+- **All projects share the same `profiles.yml`** - profiles are organized by environment (not project)
 
 ## Next Steps
 
