@@ -570,29 +570,11 @@ root_module = "{project_package}"
                         ).strip()
 
         # Write jobs as component-based YAML
-        # Use dg scaffold defs to create directory structure, then populate YAML
         project_package = self._get_project_package_name()
         if all_job_defs:
+            # Create directory structure manually (more reliable than scaffold)
             jobs_dir = self.output_dir / project_package / "defs" / "jobs"
-            
-            # Try to use dg scaffold defs to create the structure
-            try:
-                # Get the component type name - need to determine the package name
-                # The component should be registered as components.job.JobComponent
-                # But we need the full module path based on project structure
-                project_name = self._get_project_package_name()
-                component_type = f"{project_name}.components.job.JobComponent"
-                
-                # Scaffold the first job definition to create directory structure
-                subprocess.run(
-                    ["dg", "scaffold", "defs", component_type, "jobs"],
-                    check=True,
-                    cwd=self.output_dir,
-                    capture_output=True,
-                )
-            except (subprocess.CalledProcessError, Exception):
-                # If scaffold fails, create directory manually
-                jobs_dir.mkdir(parents=True, exist_ok=True)
+            jobs_dir.mkdir(parents=True, exist_ok=True)
             
             # Write all job definitions to defs.yaml
             with open(jobs_dir / "defs.yaml", "w") as f:
