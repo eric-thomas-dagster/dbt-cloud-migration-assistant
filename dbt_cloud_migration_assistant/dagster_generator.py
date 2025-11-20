@@ -125,6 +125,52 @@ class DagsterProjectGenerator:
             except subprocess.CalledProcessError as e:
                 raise Exception(f"Failed to clone {project_name}: {e.stderr}")
 
+    def generate_dbt_manifests(self, projects: List[Dict[str, Any]], project_repos: Dict[int, str]):
+        """Generate dbt manifests for all cloned projects by running dbt parse"""
+        import subprocess
+        
+        dbt_projects_dir = self.output_dir.parent / "dbt_projects"
+        
+        for project in projects:
+            project_id = project.get("id")
+            if project_id not in project_repos:
+                continue
+            
+            project_name = project.get("name", f"project_{project_id}")
+            project_dir = dbt_projects_dir / project_name
+            
+            if not project_dir.exists():
+                continue  # Skip if project wasn't cloned
+            
+            # Check if dbt is available
+            try:
+                subprocess.run(["dbt", "--version"], capture_output=True, check=True)
+            except (subprocess.CalledProcessError, FileNotFoundError):
+                # dbt not available - skip manifest generation
+                continue
+            
+            # Run dbt parse to generate manifest.json
+            # This creates target/manifest.json which Dagster needs
+            try:
+                subprocess.run(
+                    ["dbt", "parse"],
+                    cwd=project_dir,
+                    check=True,
+                    capture_output=True,
+                )
+            except subprocess.CalledProcessError as e:
+                # If dbt parse fails, try dbt compile as fallback
+                try:
+                    subprocess.run(
+                        ["dbt", "compile"],
+                        cwd=project_dir,
+                        check=True,
+                        capture_output=True,
+                    )
+                except subprocess.CalledProcessError:
+                    # If both fail, continue - user can run manually
+                    pass
+
     def copy_profiles_yml(self):
         """Copy profiles.yml.template to ~/.dbt/profiles.yml"""
         import shutil
