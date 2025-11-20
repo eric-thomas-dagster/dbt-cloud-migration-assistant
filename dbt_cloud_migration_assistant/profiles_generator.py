@@ -23,11 +23,33 @@ def generate_profiles_yml(environments: List[Dict[str, Any]]) -> str:
         if not connection:
             continue
 
+        # Extract connection details - they can be in different formats:
+        # 1. Direct format: connection.type, connection.host, etc.
+        # 2. Nested format: connection.connection_details.fields.{field}.value
+        connection_details = connection.get("connection_details", {})
+        fields = connection_details.get("fields", {}) if connection_details else {}
+        
+        # Helper function to get field value (handles both formats)
+        def get_field_value(field_name: str, default=None):
+            # Try nested format first (connection_details.fields)
+            if fields:
+                field_data = fields.get(field_name, {})
+                if isinstance(field_data, dict):
+                    return field_data.get("value", default)
+            # Try direct format
+            return connection.get(field_name, default)
+        
+        # Get connection type
         connection_type = (
-            connection.get("type")
+            get_field_value("type")
+            or connection.get("type")
             or connection.get("connection_type")
             or "postgres"
-        ).lower()
+        )
+        if connection_type:
+            connection_type = connection_type.lower()
+        else:
+            connection_type = "postgres"
 
         # Map connection type to dbt profile type
         profile_type = connection_type
@@ -44,51 +66,65 @@ def generate_profiles_yml(environments: List[Dict[str, Any]]) -> str:
         # Add connection-specific fields
         if connection_type == "snowflake":
             profile_config.update({
-                "account": connection.get("account", "{{ env_var('DBT_SNOWFLAKE_ACCOUNT') }}"),
-                "user": connection.get("user") or connection.get("username", "{{ env_var('DBT_SNOWFLAKE_USER') }}"),
+                "account": get_field_value("account") or connection.get("account", "{{ env_var('DBT_SNOWFLAKE_ACCOUNT') }}"),
+                "user": get_field_value("user") or connection.get("user") or connection.get("username", "{{ env_var('DBT_SNOWFLAKE_USER') }}"),
                 "password": "{{ env_var('DBT_SNOWFLAKE_PASSWORD') }}",
-                "role": connection.get("role", "{{ env_var('DBT_SNOWFLAKE_ROLE', '') }}"),
-                "database": connection.get("database", "{{ env_var('DBT_SNOWFLAKE_DATABASE') }}"),
-                "warehouse": connection.get("warehouse", "{{ env_var('DBT_SNOWFLAKE_WAREHOUSE') }}"),
-                "schema": connection.get("schema", "{{ env_var('DBT_SNOWFLAKE_SCHEMA') }}"),
+                "role": get_field_value("role") or connection.get("role", "{{ env_var('DBT_SNOWFLAKE_ROLE', '') }}"),
+                "database": get_field_value("database") or connection.get("database", "{{ env_var('DBT_SNOWFLAKE_DATABASE') }}"),
+                "warehouse": get_field_value("warehouse") or connection.get("warehouse", "{{ env_var('DBT_SNOWFLAKE_WAREHOUSE') }}"),
+                "schema": get_field_value("schema") or connection.get("schema", "{{ env_var('DBT_SNOWFLAKE_SCHEMA') }}"),
             })
         elif connection_type == "bigquery":
+            # BigQuery uses service account JSON - we'll use environment variables for the keyfile
+            project_id = get_field_value("project_id") or connection.get("project_id") or connection.get("project")
+            dataset = get_field_value("dataset") or connection.get("dataset") or connection.get("schema")
+            location = get_field_value("location") or connection.get("location")
+            
             profile_config.update({
                 "type": "bigquery",
                 "method": "service-account",
-                "project": connection.get("project", "{{ env_var('DBT_BIGQUERY_PROJECT') }}"),
-                "dataset": connection.get("schema") or connection.get("dataset", "{{ env_var('DBT_BIGQUERY_DATASET') }}"),
+                "project": project_id or "{{ env_var('DBT_BIGQUERY_PROJECT') }}",
+                "dataset": dataset or "{{ env_var('DBT_BIGQUERY_DATASET') }}",
                 "keyfile": "{{ env_var('DBT_BIGQUERY_KEYFILE') }}",
             })
+            
+            # Add optional BigQuery fields
+            if location:
+                profile_config["location"] = location
+            if get_field_value("priority"):
+                profile_config["priority"] = get_field_value("priority")
+            if get_field_value("maximum_bytes_billed"):
+                profile_config["maximum_bytes_billed"] = get_field_value("maximum_bytes_billed")
         elif connection_type == "postgres" or connection_type == "redshift":
             profile_config.update({
-                "host": connection.get("host", "{{ env_var('DBT_POSTGRES_HOST') }}"),
-                "user": connection.get("user") or connection.get("username", "{{ env_var('DBT_POSTGRES_USER') }}"),
+                "host": get_field_value("host") or connection.get("host", "{{ env_var('DBT_POSTGRES_HOST') }}"),
+                "user": get_field_value("user") or connection.get("user") or connection.get("username", "{{ env_var('DBT_POSTGRES_USER') }}"),
                 "password": "{{ env_var('DBT_POSTGRES_PASSWORD') }}",
-                "port": connection.get("port", 5432),
-                "dbname": connection.get("database", "{{ env_var('DBT_POSTGRES_DATABASE') }}"),
-                "schema": connection.get("schema", "{{ env_var('DBT_POSTGRES_SCHEMA') }}"),
+                "port": get_field_value("port") or connection.get("port", 5432),
+                "dbname": get_field_value("database") or connection.get("database") or connection.get("dbname", "{{ env_var('DBT_POSTGRES_DATABASE') }}"),
+                "schema": get_field_value("schema") or connection.get("schema", "{{ env_var('DBT_POSTGRES_SCHEMA') }}"),
             })
         elif connection_type == "databricks":
             profile_config.update({
-                "host": connection.get("host", "{{ env_var('DBT_DATABRICKS_HOST') }}"),
-                "http_path": connection.get("http_path", "{{ env_var('DBT_DATABRICKS_HTTP_PATH') }}"),
+                "host": get_field_value("host") or connection.get("host", "{{ env_var('DBT_DATABRICKS_HOST') }}"),
+                "http_path": get_field_value("http_path") or connection.get("http_path", "{{ env_var('DBT_DATABRICKS_HTTP_PATH') }}"),
                 "token": "{{ env_var('DBT_DATABRICKS_TOKEN') }}",
-                "schema": connection.get("schema", "{{ env_var('DBT_DATABRICKS_SCHEMA') }}"),
+                "schema": get_field_value("schema") or connection.get("schema", "{{ env_var('DBT_DATABRICKS_SCHEMA') }}"),
             })
         else:
             # Generic profile - use environment variables
             profile_config.update({
-                "host": "{{ env_var('DBT_HOST') }}",
-                "user": "{{ env_var('DBT_USER') }}",
+                "host": get_field_value("host") or connection.get("host", "{{ env_var('DBT_HOST') }}"),
+                "user": get_field_value("user") or connection.get("user") or connection.get("username", "{{ env_var('DBT_USER') }}"),
                 "password": "{{ env_var('DBT_PASSWORD') }}",
-                "database": connection.get("database", "{{ env_var('DBT_DATABASE') }}"),
-                "schema": connection.get("schema", "{{ env_var('DBT_SCHEMA') }}"),
+                "database": get_field_value("database") or connection.get("database", "{{ env_var('DBT_DATABASE') }}"),
+                "schema": get_field_value("schema") or connection.get("schema", "{{ env_var('DBT_SCHEMA') }}"),
             })
 
         # Add threads if specified
-        if connection.get("threads"):
-            profile_config["threads"] = connection.get("threads")
+        threads = get_field_value("threads") or connection.get("threads")
+        if threads:
+            profile_config["threads"] = threads
 
         # Add local dev target (DuckDB) for local development
         # Output names: use environment name for production, 'local' for DuckDB
