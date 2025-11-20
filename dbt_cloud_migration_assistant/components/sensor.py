@@ -70,29 +70,27 @@ class SensorComponent(dg.Component, dg.Model, dg.Resolvable):
         }
         dagster_status = status_map.get(self.run_status, dg.DagsterRunStatus.SUCCESS)
         
-        # Build sensor parameters
-        # run_status_sensor uses job_name (not request_job_name) for the job to trigger
-        sensor_params = {
-            "name": self.sensor_name,
-            "run_status": dagster_status,
-            "job_name": self.job_name,  # The job to trigger
-            "description": self.description or f"Monitor {self.monitored_job_name} for {self.run_status}",
-            "minimum_interval_seconds": self.minimum_interval_seconds,
-            "default_status": (
+        # Build sensor function that will be decorated
+        # run_status_sensor doesn't take job_name in decorator - we return RunRequest with job_name
+        @dg.run_status_sensor(
+            name=self.sensor_name,
+            run_status=dagster_status,
+            monitored_job_name=self.monitored_job_name if self.monitored_job_name else None,
+            description=self.description or f"Monitor {self.monitored_job_name} for {self.run_status}",
+            minimum_interval_seconds=self.minimum_interval_seconds,
+            default_status=(
                 dg.DefaultSensorStatus.RUNNING
                 if self.default_status == "RUNNING"
                 else dg.DefaultSensorStatus.STOPPED
             ),
-        }
-        
-        # Add monitored_job_name if provided (filters to only monitor specific job)
-        if self.monitored_job_name:
-            sensor_params["monitored_job_name"] = self.monitored_job_name
-        
-        @dg.run_status_sensor(**sensor_params)
+        )
         def status_sensor(context: dg.RunStatusSensorContext):
             """Sensor that triggers on run status changes."""
-            return dg.RunRequest(run_key=f"status_{context.dagster_run.run_id}")
+            # Return RunRequest with the job to trigger
+            return dg.RunRequest(
+                run_key=f"status_{context.dagster_run.run_id}",
+                job_name=self.job_name,  # The job to trigger
+            )
 
         return status_sensor
 
