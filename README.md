@@ -10,7 +10,10 @@ git clone https://github.com/eric-thomas-dagster/dbt-cloud-migration-assistant.g
 cd dbt-cloud-migration-assistant
 pip install -e .
 
-# 2. Run migration
+# 2. Run migration (interactive mode - will prompt for missing info)
+dbt-cloud-migrate
+
+# Or with flags
 dbt-cloud-migrate --api-key YOUR_API_KEY --account-id YOUR_ACCOUNT_ID
 ```
 
@@ -21,10 +24,23 @@ That's it! The tool will automatically:
 
 You'll get a complete Dagster project ready to run!
 
+## Interactive Mode
+
+If you don't provide flags, the tool will prompt you interactively:
+
+```bash
+dbt-cloud-migrate
+# Will prompt for:
+# - API key (hidden input)
+# - Account ID
+# - Output directory (default: dagster_project)
+# - Multi-tenant API URL (optional)
+```
+
 ## One-Liner
 
 ```bash
-git clone https://github.com/eric-thomas-dagster/dbt-cloud-migration-assistant.git && cd dbt-cloud-migration-assistant && pip install -e . && dbt-cloud-migrate --api-key YOUR_API_KEY --account-id YOUR_ACCOUNT_ID
+git clone https://github.com/eric-thomas-dagster/dbt-cloud-migration-assistant.git && cd dbt-cloud-migration-assistant && pip install -e . && dbt-cloud-migrate
 ```
 
 ## Options
