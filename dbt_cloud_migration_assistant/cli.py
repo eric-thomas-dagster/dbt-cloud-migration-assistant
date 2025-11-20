@@ -11,21 +11,21 @@ from .adapter_detector import detect_adapters, extract_environment_variables
 @click.command()
 @click.option(
     "--api-key",
-    required=True,
-    help="dbt Cloud API key",
+    default=None,
+    help="dbt Cloud API key (will prompt if not provided)",
     envvar="DBT_CLOUD_API_KEY",
 )
 @click.option(
     "--account-id",
-    required=True,
+    default=None,
     type=int,
-    help="dbt Cloud account ID",
+    help="dbt Cloud account ID (will prompt if not provided)",
     envvar="DBT_CLOUD_ACCOUNT_ID",
 )
 @click.option(
     "--output-dir",
-    default="dagster_project",
-    help="Output directory for generated Dagster project",
+    default=None,
+    help="Output directory for generated Dagster project (default: dagster_project)",
 )
 @click.option(
     "--api-base-url",
@@ -48,7 +48,7 @@ from .adapter_detector import detect_adapters, extract_environment_variables
     is_flag=True,
     help="Skip automatic setup (don't clone repos, copy profiles, or install deps)",
 )
-def main(api_key: str, account_id: int, output_dir: str, api_base_url: Optional[str], skip_confirm: bool, auto_setup: bool, no_auto_setup: bool):
+def main(api_key: Optional[str], account_id: Optional[int], output_dir: Optional[str], api_base_url: Optional[str], skip_confirm: bool, auto_setup: bool, no_auto_setup: bool):
     """
     Migrate dbt Cloud projects, jobs, and schedules to Dagster.
 
@@ -57,6 +57,39 @@ def main(api_key: str, account_id: int, output_dir: str, api_base_url: Optional[
     """
     click.echo("🚀 Starting dbt Cloud to Dagster migration...")
     click.echo("")
+
+    # Prompt for required values if not provided
+    if not api_key:
+        api_key = click.prompt(
+            "Enter your dbt Cloud API key",
+            hide_input=True,
+            type=str,
+        )
+    
+    if account_id is None:
+        account_id = click.prompt(
+            "Enter your dbt Cloud account ID",
+            type=int,
+        )
+    
+    if not output_dir:
+        output_dir = click.prompt(
+            "Enter output directory for Dagster project",
+            default="dagster_project",
+            type=str,
+        )
+    
+    # Optional: prompt for API base URL if user might have multi-tenant account
+    if not api_base_url:
+        use_custom_url = click.confirm(
+            "Do you have a multi-tenant account with a custom API URL?",
+            default=False,
+        )
+        if use_custom_url:
+            api_base_url = click.prompt(
+                "Enter your API base URL (e.g., https://lm759.us1.dbt.com/api/v2)",
+                type=str,
+            )
 
     # Initialize client
     try:
