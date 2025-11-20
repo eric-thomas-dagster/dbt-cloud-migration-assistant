@@ -574,25 +574,48 @@ root_module = "{project_package}"
                         
                         # Map dbt Cloud status codes to Dagster run statuses
                         # dbt Cloud status codes: 1=Queued, 2=Started, 3=Running, 10=Success, 20=Error, 30=Cancelled
-                        # We'll create sensors for each status in trigger_statuses
+                        # Dagster supports multiple statuses by creating separate sensors for each
+                        # We'll create one sensor per status in trigger_statuses
+                        
+                        # All possible dbt Cloud status codes and their Dagster equivalents
+                        status_code_map = {
+                            10: "SUCCESS",   # Success
+                            20: "FAILURE",   # Error
+                            30: "CANCELED",  # Cancelled
+                            2: "STARTED",    # Started
+                            1: "QUEUED",     # Queued (not directly supported in Dagster, but we can map it)
+                            3: "STARTED",    # Running (map to STARTED)
+                        }
+                        
+                        # If trigger_statuses is empty or very large, assume "all statuses"
+                        # dbt Cloud typically has 4-5 status types, so if we see more than 3, it's likely "all"
+                        all_possible_statuses = [10, 20, 30, 2]  # Success, Error, Cancelled, Started
+                        if len(trigger_statuses) >= len(all_possible_statuses) or len(trigger_statuses) == 0:
+                            # Create sensors for all common statuses
+                            trigger_statuses = all_possible_statuses
+                        
+                        # Create one sensor per status
                         for status_code in trigger_statuses:
-                            if status_code == 10:  # Success
-                                dagster_status = "SUCCESS"
-                            elif status_code == 20:  # Error
-                                dagster_status = "FAILURE"
-                            elif status_code == 30:  # Cancelled
-                                dagster_status = "CANCELED"
-                            elif status_code == 2:  # Started
-                                dagster_status = "STARTED"
-                            else:
-                                # Default to SUCCESS for unknown statuses
-                                dagster_status = "SUCCESS"
+                            dagster_status = status_code_map.get(status_code, "SUCCESS")
+                            
+                            # Skip QUEUED as Dagster doesn't have a direct equivalent
+                            if dagster_status == "QUEUED":
+                                continue
                             
                             # Create sensor name (include status if multiple statuses)
                             if len(trigger_statuses) > 1:
                                 sensor_name = f"{job_name_safe}_sensor_{dagster_status.lower()}"
                             else:
                                 sensor_name = f"{job_name_safe}_sensor"
+                            
+                            # Build status description
+                            status_descriptions = {
+                                "SUCCESS": "success",
+                                "FAILURE": "failure/error",
+                                "CANCELED": "cancellation",
+                                "STARTED": "start",
+                            }
+                            status_desc = status_descriptions.get(dagster_status, dagster_status.lower())
                             
                             sensor_def = {
                                 "type": f"{project_package}.components.sensor.SensorComponent",
@@ -602,7 +625,7 @@ root_module = "{project_package}"
                                     "job_name": job_name_safe,  # The job to trigger
                                     "monitored_job_name": trigger_job_name_safe,  # The job to monitor
                                     "run_status": dagster_status,
-                                    "description": f"Sensor migrated from dbt Cloud: triggers {job.get('name', f'job_{job_id}')} when {trigger_job_name_safe} completes with status {dagster_status}",
+                                    "description": f"Sensor migrated from dbt Cloud: triggers {job.get('name', f'job_{job_id}')} when {trigger_job_name_safe} completes with {status_desc}",
                                     "minimum_interval_seconds": 30,
                                     "default_status": "RUNNING",
                                 },
